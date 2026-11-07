@@ -58,6 +58,29 @@
   ul.plain li { font-size: 34px; line-height: 1.35; padding: 22px 0; border-bottom: 1px solid var(--line); }
   ul.plain li span { color: var(--ink2); }
 
+
+  /* story pieces */
+  .track { position: absolute; top: 46px; left: 140px; display: flex; gap: 34px; font-size: 19px; color: var(--muted); }
+  .track span { display: flex; align-items: center; gap: 9px; }
+  .track b { display: inline-block; width: 26px; height: 26px; line-height: 26px; text-align: center; border-radius: 50%; border: 2px solid var(--line); font-size: 14px; }
+  .track .cur { color: var(--ink); font-weight: 600; }
+  .track .cur b { background: var(--ink); border-color: var(--ink); color: var(--paper); }
+  .tag { align-self: flex-start; font: 700 20px var(--mono); letter-spacing: 1px; text-transform: uppercase; padding: 6px 12px; border-radius: 3px; margin-bottom: 22px; }
+  .tag.bad { background: var(--block); color: #fff; }
+  .tag.good { background: var(--allow); color: #fff; }
+  .stat { display: grid; grid-template-columns: 430px 1fr; gap: 44px; align-items: center; padding: 26px 0 30px; border-top: 2px solid var(--ink); }
+  .stat .v { font-size: 128px; font-weight: 700; letter-spacing: -3px; line-height: 1; color: var(--block); }
+  .stat .l { font-size: 30px; line-height: 1.4; color: var(--ink); }
+  .stat .when { display: block; margin-top: 10px; font: 600 21px var(--mono); color: var(--muted); }
+  .rows.tight > div { padding: 18px 0; font-size: 28px; }
+  .flow { display: flex; align-items: stretch; gap: 30px; }
+  .flow .box { flex: 1; border: 2px solid var(--ink); border-radius: 4px; padding: 30px 34px; background: #fff; }
+  .flow .n { font: 700 20px var(--mono); color: var(--muted); margin-bottom: 12px; }
+  .flow .t { font-size: 40px; font-weight: 700; line-height: 1.15; }
+  .flow .d { font-size: 25px; color: var(--ink2); margin-top: 10px; }
+  .flow .risk { display: inline-block; margin-top: 26px; font: 700 20px var(--mono); text-transform: uppercase; letter-spacing: 1px; color: #fff; background: var(--block); padding: 5px 11px; border-radius: 3px; }
+  .flow .arrow { align-self: center; font-size: 60px; color: var(--muted); }
+
   /* video */
   .slide.video { padding: 54px 140px 60px; justify-content: flex-start; }
   .slide.video h2 { margin-bottom: 26px; font-size: 44px; }
@@ -72,68 +95,97 @@
 <body>
 <div id="stage">
 
-  <!-- 1 · title (0:15) -->
+  <!-- 1 · title (0:10) -->
   <section class="slide">
     <div class="rule"></div>
     <h1>ModelGate</h1>
-    <p class="lead" style="margin-top:28px">Loading an AI model can run its author's code on your machine.<br>ModelGate checks that code first.</p>
+    <p class="lead" style="margin-top:28px">Safety checks for open-source models, and for the agents you build on them.</p>
     <p class="small" style="margin-top:80px">github.com/rkottomt/modelgate</p>
   </section>
 
-  <!-- 2 · the problem (0:50) -->
+  <!-- 2 · the workflow (0:25) -->
   <section class="slide">
-    <h2>One flag runs a stranger's code.</h2>
-    <div class="codeblock">model = AutoModel.from_pretrained(<span class="s">"org/model"</span>,
-                                  <span class="hl">trust_remote_code=<span class="k">True</span></span>)</div>
-    <div class="rows">
-      <div><span class="k">It's everywhere</span><span class="d">Phi-3, Qwen, DeepSeek, ChatGLM, Jina and Nomic all need it to load.</span></div>
-      <div><span class="k">It runs first</span><span class="d">The repo's Python runs on import, with your keys, tokens and network, before you call the model.</span></div>
-      <div><span class="k">No one checks it</span><span class="d">The code can change with any push to the repo. Existing scanners mostly check the weights, not this code.</span></div>
+    <h2>What every AI team does</h2>
+    <div class="flow">
+      <div class="box"><div class="n">Step 1</div><div class="t">Download an open-source model</div><div class="d">from Hugging Face</div><div class="risk">Problem 1</div></div>
+      <div class="arrow">→</div>
+      <div class="box"><div class="n">Step 2</div><div class="t">Build an agent on it</div><div class="d">give it tools, files and a goal</div><div class="risk">Problem 2</div></div>
+    </div>
+    <p class="lead" style="margin-top:56px">Both steps hand control of your machine to code you didn't write.</p>
+  </section>
+
+  <!-- 3 · problem 1 (0:50) -->
+  <section class="slide">
+    <div class="track"><span class="cur"><b>1</b>Download a model</span><span class=""><b>2</b>Build an agent</span><span class=""><b>3</b>Demo</span></div>
+    <div class="tag bad">Problem 1</div>
+    <h2>The model you download runs its own code on your machine.</h2>
+    <div class="stat">
+      <div class="v">32,000</div>
+      <div class="l">downloads of 31 Hugging Face models that planted crypto miners and reverse shells on the machines that loaded them. They passed three existing scanners. <span class="when">Oct 2026</span></div>
+    </div>
+    <div class="rows tight">
+      <div><span class="k">How</span><span class="d">One flag, <code>trust_remote_code=True</code>, runs the repo's Python the moment you load it.</span></div>
+      <div><span class="k">What you lose</span><span class="d">Your GPUs mine for someone else. A stranger gets a shell, your SSH keys and your tokens.</span></div>
     </div>
   </section>
 
-  <!-- 3 · it's happening (0:50) -->
+  <!-- 4 · fix 1 (0:40) -->
   <section class="slide">
-    <h2>It's already being exploited.</h2>
-    <div class="nums">
-      <div class="num"><div class="v">32,000</div><div class="l">downloads of 31 Hugging Face repos that used this flag to plant crypto miners and reverse shells. They passed three existing scanners. <span class="when">Sep–Oct 2026</span></div></div>
-      <div class="num"><div class="v">13 hrs</div><div class="l">for AI agents under test to escape through their one allowed network path and take admin control of Hugging Face servers. <span class="when">Jul 2026</span></div></div>
-      <div class="num"><div class="v">~100</div><div class="l">malicious models found on Hugging Face opening reverse shells on the machines that loaded them. <span class="when">Feb 2024</span></div></div>
-    </div>
-    <p class="small" style="margin-top:44px">Models attack whoever loads them. Agents escape the box they were given. ModelGate checks both.</p>
-  </section>
-
-  <!-- 4 · how it works (0:50) -->
-  <section class="slide">
-    <h2>One import. Checked before it runs.</h2>
-    <div class="codeblock" style="margin-bottom:40px"><span class="hl"><span class="k">import</span> modelgate.auto</span></div>
+    <div class="track"><span class="cur"><b>1</b>Download a model</span><span class=""><b>2</b>Build an agent</span><span class=""><b>3</b>Demo</span></div>
+    <div class="tag good">Fix 1</div>
+    <h2>ModelGate checks the code before it ever runs.</h2>
+    <div class="codeblock" style="margin-bottom:36px"><span class="hl"><span class="k">import</span> modelgate.auto</span></div>
     <div class="steps">
       <div class="step"><div class="n">01</div><div class="t">Fetch the code</div><div class="d">Locked to one commit. Never the weights.</div></div>
       <div class="step"><div class="n">02</div><div class="t">Read it</div><div class="d">Risky calls, hidden blobs, notes aimed at AI reviewers.</div></div>
-      <div class="step"><div class="n">03</div><div class="t">Run it offline</div><div class="d">Locked container, decoy keys, every system call recorded.</div></div>
-      <div class="step"><div class="n">04</div><div class="t">Fixed rules decide</div><div class="d"><span class="allow">Allow</span>, <span class="warn">Warn</span> or <span class="block">Block</span>. An AI explains why, but can't change it.</div></div>
+      <div class="step"><div class="n">03</div><div class="t">Run it offline</div><div class="d">Sealed container with decoy keys. Every system call recorded.</div></div>
+      <div class="step"><div class="n">04</div><div class="t">Block or allow</div><div class="d">Starting a miner, opening a shell or touching keys means <span class="block">Block</span>.</div></div>
     </div>
-    <p class="note">For agents: say what the job is, approve the drafted guardrails, and every action is checked.</p>
   </section>
 
-  <!-- 5 · demo (1:00) -->
+  <!-- 5 · problem 2 (0:50) -->
+  <section class="slide">
+    <div class="track"><span class=""><b>1</b>Download a model</span><span class="cur"><b>2</b>Build an agent</span><span class=""><b>3</b>Demo</span></div>
+    <div class="tag bad">Problem 2</div>
+    <h2>The agent you build escapes its sandbox.</h2>
+    <div class="stat">
+      <div class="v">13 hrs</div>
+      <div class="l">for AI agents under test to slip out through their one allowed network path and take admin control of Hugging Face's servers. <span class="when">Jul 2026</span></div>
+    </div>
+    <div class="rows tight">
+      <div><span class="k">How</span><span class="d">A path everyone assumed was closed wasn't. Nothing checked what the agents actually did.</span></div>
+      <div><span class="k">What you lose</span><span class="d">Control. It reads your files, takes credentials and customer data, and acts online as you.</span></div>
+    </div>
+  </section>
+
+  <!-- 6 · fix 2 (0:40) -->
+  <section class="slide">
+    <div class="track"><span class=""><b>1</b>Download a model</span><span class="cur"><b>2</b>Build an agent</span><span class=""><b>3</b>Demo</span></div>
+    <div class="tag good">Fix 2</div>
+    <h2>Guardrails you approve, checked on every action.</h2>
+    <div class="steps three">
+      <div class="step"><div class="n">01</div><div class="t">Say what it's for</div><div class="d">"Summarise this CSV. No internet, no credentials."</div></div>
+      <div class="step"><div class="n">02</div><div class="t">Approve the guardrails</div><div class="d">An AI drafts them from a fixed list. You tick them, and they're signed.</div></div>
+      <div class="step"><div class="n">03</div><div class="t">Run it sealed</div><div class="d">Every connection, file write, program and secret read is checked.</div></div>
+    </div>
+    <p class="note">Our escaping test agent: 5 violations caught, each pinned to its line, in 0.3 seconds.</p>
+  </section>
+
+  <!-- 7 · demo (1:00) -->
   <section class="slide video">
-    <h2>Demo</h2>
+    <h2>The whole workflow</h2>
     <video id="demo" src="../../docs/modelgate_demo.mp4" poster="poster.jpg" controls preload="metadata" playsinline></video>
   </section>
 
-  <!-- 6 · results + next (0:45) -->
+  <!-- 8 · close (0:25) -->
   <section class="slide">
-    <h2>Where it stands</h2>
-    <div class="nums" style="margin-bottom:56px">
-      <div class="num"><div class="v">6 / 6</div><div class="l">attack imitations caught, including one that only fires on a GPU</div></div>
-      <div class="num"><div class="v">0</div><div class="l">of 6 popular custom-code models let through unreviewed. 2 blocked by mistake; both explained.</div></div>
-      <div class="num"><div class="v">~3 s</div><div class="l">per scan, including running the code</div></div>
-    </div>
+    <div class="rule"></div>
+    <h2 style="margin-bottom:40px">Download the model. Build the agent. Keep control.</h2>
     <div class="rows">
-      <div><span class="k">Not yet</span><span class="d">Payloads that wait hours. Docker shares the host kernel. Agents run fully offline.</span></div>
-      <div><span class="k">Next</span><span class="d">Approved internet access for agents through a key-holding proxy, token tracking, a stronger sandbox.</span></div>
+      <div><span class="k">Tested</span><span class="d">6 of 6 attack imitations caught. About 3 seconds per scan.</span></div>
+      <div><span class="k">Next</span><span class="d">Approved internet access for agents, token tracking, a stronger sandbox.</span></div>
     </div>
+    <p class="small" style="margin-top:56px">github.com/rkottomt/modelgate</p>
   </section>
 
 </div>

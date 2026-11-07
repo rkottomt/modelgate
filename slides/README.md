@@ -4,7 +4,7 @@ Hackathon slide materials for ModelGate.
 
 | File | What it is |
 |---|---|
-| `SLIDES.md` | Speaker notes and timings for the 6-slide, 5-minute talk, with sources to verify |
+| `SLIDES.md` | Speaker notes and timings for the 8-slide, 5-minute talk, with sources to verify |
 | `images/dashboard_allow.png` | Dashboard, `fixtures/clean_model`: green ALLOW (1440x900 @2x, light theme) |
 | `images/dashboard_block.png` | Dashboard, `fixtures/sneaky_model`: red BLOCK with file:line reasons and the AI summary |
 | `images/dashboard_injection.png` | Dashboard, `fixtures/injection_model`: BLOCK, with a reason line saying the prompt injection has no effect |
@@ -15,7 +15,7 @@ Hackathon slide materials for ModelGate.
 | `images/eval.png` | Eval summary and table drawn from `../eval_results.json` |
 | `images/agents_draft.png` | Agent guardrails page: AI-drafted contract for `rogue_eval_agent`, with checkboxes and its reasons |
 | `images/agents_run.png` | Agent guardrails page: run result, 5 violations with code lines, the timeline and resource use |
-| `deck/index.html` | **The slideshow.** Open it in a browser: arrow keys or click to move, F for fullscreen. 6 slides, about 4:30 with the video. Slide 5 plays `docs/modelgate_demo.mp4` |
+| `deck/index.html` | **The slideshow.** Open it in a browser: arrow keys or click to move, F for fullscreen. 8 slides following the workflow (download a model, build an agent), about 4:55. Slide 7 plays `docs/modelgate_demo.mp4` |
 | `tools/` | Scripts that regenerate the images (`tools/build/` holds intermediate files) |
 
 ## Regenerate
