@@ -354,13 +354,23 @@ def exercise():
                 model.eval()
                 emit("phase.model_init", f"instantiated {cls.__name__}")
                 PHASE = "forward"
+                hid = int(getattr(model.config, "hidden_size", 8) or 8)
                 ids = torch.randint(0, 16, (1, 4))
+                attempts = [lambda: model(input_ids=ids), lambda: model(ids),                     # token-id models
+                            lambda: model(torch.randn(1, 4, hid)), lambda: model(torch.randn(1, hid))]  # embedding models
+                last_err = None
                 with torch.no_grad():
-                    try:
-                        model(input_ids=ids)
-                    except TypeError:
-                        model(ids)
-                emit("phase.forward", f"{cls.__name__}: dummy forward pass ok")
+                    for call in attempts:
+                        try:
+                            call()
+                            last_err = None
+                            break
+                        except BaseException as e:  # noqa: BLE001
+                            last_err = e
+                if last_err is None:
+                    emit("phase.forward", f"{cls.__name__}: dummy forward pass ok")
+                else:
+                    emit("exercise.error", f"{r['key']} (forward): {type(last_err).__name__}: {last_err}"[:300], **_err(last_err))
                 PHASE = "save"
                 model.save_pretrained(os.path.join(SAVE_DIR, r["key"]))
                 emit("phase.save", f"{cls.__name__}: save_pretrained ok")
