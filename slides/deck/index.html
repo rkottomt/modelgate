@@ -120,17 +120,19 @@
     <p class="small" style="margin-top:80px">github.com/rkottomt/modelgate</p>
   </section>
 
-  <!-- 1 · the hook (0:40) -->
+  <!-- 1 · why we built it (0:45) -->
   <section class="slide">
-    <div class="tag bad">29 October 2026</div>
-    <h2>You load a model from Hugging Face.</h2>
-    <div class="codeblock" style="margin-bottom:34px">model = AutoModel.from_pretrained(<span class="s">"…"</span>, trust_remote_code=<span class="k">True</span>)</div>
-    <ul class="plain consequences">
-      <li>Your GPU starts mining crypto for someone else.</li>
-      <li>A backdoor stays after the mining stops.</li>
-      <li>The advice to victims: treat the machine as compromised.</li>
-    </ul>
-    <p class="small" style="margin-top:34px">31 repos · 7 accounts · 32,000+ downloads · not flagged by Hugging Face's antivirus or its partner scanners. Source: Pluto Security, "Load/Mine".</p>
+    <div class="tag bad">Why we built ModelGate</div>
+    <h2>31 Hugging Face models installed miners and backdoors.</h2>
+    <div class="stat">
+      <div class="v">32,000</div>
+      <div class="l">downloads of models with hidden code, reported by Pluto Security on 29 October 2026. <span class="when">Pluto Security, "Load/Mine"</span></div>
+    </div>
+    <div class="rows tight">
+      <div><span class="k">How it ran</span><span class="d">Automatically, the moment someone loaded the model with a common setting: <code>trust_remote_code=True</code>.</span></div>
+      <div><span class="k">What it did</span><span class="d">Installed crypto-miners and backdoors. A second wave followed, and copies were still live days later.</span></div>
+      <div><span class="k">Who missed it</span><span class="d"><b>Hugging Face's, Protect AI's and JFrog's scanners all missed it.</b></span></div>
+    </div>
   </section>
 
   <!-- 2 · why it got through (0:35) -->

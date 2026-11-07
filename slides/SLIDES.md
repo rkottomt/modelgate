@@ -6,7 +6,7 @@ There are 8 slides, about **4:50** in total. To make up time, trim slide 2 rathe
 | # | Slide | Time | Running |
 |---|---|---|---|
 | 1 | ModelGate (title) | 0:10 | 0:10 |
-| 2 | You load a model from Hugging Face | 0:40 | 0:50 |
+| 2 | Why we built ModelGate | 0:45 | 0:55 |
 | 3 | The model ships its own Python | 0:30 | 1:20 |
 | 4 | One import: checked before it runs | 0:35 | 1:55 |
 | 5 | Three seconds in the trap | 0:55 | 2:50 |
@@ -19,8 +19,8 @@ There are 8 slides, about **4:50** in total. To make up time, trim slide 2 rathe
 ## 1. ModelGate (0:10)
 "We're ModelGate. We run a model's code in a trap before it runs on your machine."
 
-## 2. You load a model from Hugging Face (0:40)
-"Picture this. Nine days ago you loaded a model from Hugging Face. One line of code. Your GPU started mining crypto for someone else, and a backdoor was left behind that stays even after the mining stops. The researchers' advice to anyone who loaded these models is to treat the machine as compromised. That was the Load/Mine campaign: 31 repos across seven accounts, more than 32,000 downloads, and Hugging Face's antivirus and partner scanners didn't flag them."
+## 2. Why we built ModelGate (0:45)
+"This is why we built ModelGate. On 29 October, Pluto Security reported 31 Hugging Face models with hidden code, downloaded about 32,000 times. The code ran automatically the moment someone loaded the model with a very common setting, `trust_remote_code=True`. It installed crypto-miners and backdoors, a second wave followed, and copies were still up days later. Hugging Face's, Protect AI's and JFrog's scanners all missed it."
 
 ## 3. The model ships its own Python (0:30)
 "How does a model do that? Many popular models ship their own Python. The config tells transformers to import it, and with `trust_remote_code=True` it runs on your machine as soon as you load the model, with your keys, your tokens and your GPU. Scanners look at files. The attack is what the code does when it runs."
