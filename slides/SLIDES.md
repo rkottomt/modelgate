@@ -1,38 +1,43 @@
 # ModelGate: 5-minute talk
 
 Open `slides/deck/index.html` in a browser from inside the repo (arrow keys to move, F for fullscreen).
-There are 8 slides, about **4:50** in total. The deck plays the 34-second cut. The 1-minute version for sharing is
+There are 9 slides, about **4:55** in total. The deck plays the 34-second cut. The 1-minute version for sharing is
 https://drive.google.com/file/d/15GArDvuaBnmFyh9qrAGCWyC_mAGkBvph/view?usp=sharing
 
 | # | Slide | Time | Running |
 |---|---|---|---|
 | 1 | ModelGate (title) | 0:10 | 0:10 |
-| 2 | Why we built ModelGate | 0:45 | 0:55 |
-| 3 | Millions run open models on their own machines | 0:30 | 1:25 |
-| 4 | One import: checked before it runs | 0:35 | 2:00 |
-| 5 | Three seconds in the trap | 0:55 | 2:55 |
-| 6 | Demo (34 s video) | 0:50 | 3:45 |
-| 7 | Already checked: 37 popular models | 0:45 | 4:30 |
-| 8 | Close | 0:20 | 4:50 |
+| 2 | Why we built ModelGate | 0:40 | 0:50 |
+| 3 | Millions run open models on their own machines | 0:25 | 1:15 |
+| 4 | One import: checked before it runs | 0:25 | 1:40 |
+| 5 | Three seconds in the trap | 0:45 | 2:25 |
+| 6 | What makes a model unsafe | 0:40 | 3:05 |
+| 7 | Demo (34 s video) | 0:50 | 3:55 |
+| 8 | Already checked: 37 popular models | 0:40 | 4:35 |
+| 9 | Close | 0:20 | 4:55 |
 
 ---
 
 ## 1. ModelGate (0:10)
 "We're ModelGate. We run a model's code in a trap before it runs on your machine."
 
-## 2. Why we built ModelGate (0:45)
+## 2. Why we built ModelGate (0:40)
 "This is why we built ModelGate. On 29 October, Pluto Security reported 31 Hugging Face models with hidden code, downloaded about 32,000 times. The code ran automatically the moment someone loaded the model with a very common setting, `trust_remote_code=True`. It installed crypto-miners and backdoors, a second wave followed, and copies were still up days later. Hugging Face's, Protect AI's and JFrog's scanners all missed it."
 
-## 3. Millions run open models on their own machines (0:30)
+## 3. Millions run open models on their own machines (0:25)
 "This isn't a niche problem. More than 18 million people use Hugging Face, which hosts over 3 million models. Ollama alone says 8.9 million developers run open models locally. And about 37,000 models on Hugging Face need `trust_remote_code` to load, which means they run their own code. Every one of those loads runs on someone's own hardware, with their own keys."
 
-## 4. One import (0:35)
+## 4. One import (0:25)
 "ModelGate is one import. Every load like this goes through four steps first. We fetch only the code, locked to one commit, and never the weights. We read it. We run it in a trap. Fixed rules decide, and an AI explains the result in plain English but can't change it."
 
-## 5. Three seconds in the trap (0:55)
+## 5. Three seconds in the trap (0:45)
 "This is the hard part. We don't just read the code; we run it in a trap. The trap is **sealed**: no network, a read-only disk, no privileges, and the files are piped in, so there's no path back to your machine. It's **baited**: it looks like a GPU server, with a decoy SSH key and fake tokens that are fresh for every scan. We **exercise** the code: we tell it a GPU exists, build a tiny version of the model, run it, save it and load the tokenizer, because real payloads wait for exactly those moments. And it's **watched**: the kernel logs every connection and every program started, and Python tells us the exact line. This red row is real: the connection only happened during the forward pass, on line 19. All of that takes about three seconds per repo. If anything hangs or crashes, or Docker isn't available, the load is blocked."
 
-## 6. Demo (0:50; the video is 34 s)
+## 6. What makes a model unsafe (0:40)
+"Here are our exact criteria. A model is **blocked** if any one of these happens. It opens a network connection. It starts a program or a shell. It reads keys, tokens or credential files. It hides a program in memory or renames its process. It decodes hidden data and runs it. It ships compiled code we can't read. Or we can't finish checking it, because it crashed, timed out or there was no sandbox. Then there's **warn**, which means a person should look: network or shell code that didn't fire, `exec` or encoded blobs, code pulled from another repo, text aimed at AI reviewers, or parts of the model we couldn't run. A model is **allowed** only if none of that happens, and then the load is locked to the exact commit we checked. Fixed rules make these calls, never the AI."
+(Maps to the code: sandbox rules SBX-NET, SBX-PROC, SBX-SENSITIVE/CANARY/EXFIL, SBX-MEMFD/PROCNAME, SBX-CRASH/TIMEOUT/NOT-ISOLATED; static rules MG100 combos, MG090 native files, MG062 blocked reference = Block. MG010–MG025, MG030, MG060, MG070, SBX-EXERCISE-INCOMPLETE = Warn.)
+
+## 7. Demo (0:50; the video is 34 s)
 Click play. While it runs:
 - "One import, and the load is refused before the code runs."
 - "This next one waits. It only fires inside `forward()`, and only on a GPU. The sandbox fakes a GPU and runs the model, and the kernel catches the connection and the shell."
@@ -40,11 +45,11 @@ Click play. While it runs:
 
 If the video won't play, run the same flow live: start `modelgate serve`, open http://127.0.0.1:8000 and click "deferred model".
 
-## 7. Already checked: 37 popular models (0:45)
+## 8. Already checked: 37 popular models (0:40)
 "We didn't just test our own examples. We ran ModelGate over 37 of the most-used custom-code models on Hugging Face: Phi, Qwen, DeepSeek, GLM, InternVL, Jina, Nomic and more. It checked all 37 in 107 seconds, about 2.9 seconds each, and ran 29 of them inside the trap. None of them tried to connect out, start a program or touch keys. We also caught six out of six attack imitations. Seven models crashed on the current transformers version, so we couldn't watch them run, and ModelGate doesn't let them load. That's failing closed on purpose."
 (Data: `slides/verified_models.json`; rerun with `python scan_popular.py out.json`.)
 
-## 8. Close (0:25)
+## 9. Close (0:20)
 "The code runs in our trap before it runs on your GPU. Next, we want to scan every new commit on the Hub, so a model is checked before anyone downloads it. Thank you."
 
 ---

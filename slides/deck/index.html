@@ -98,6 +98,16 @@
   .colhead { font: 700 20px var(--mono); text-transform: uppercase; letter-spacing: 1px; color: var(--muted); margin-bottom: 12px; }
   .twocol ul.plain li { font-size: 29px; }
 
+
+  .crit { display: grid; grid-template-columns: 1.25fr 1fr 0.9fr; gap: 34px; }
+  .crit .c { border-top: 6px solid; padding-top: 18px; }
+  .crit .c-block { border-color: var(--block); } .crit .c-warn { border-color: var(--warn); } .crit .c-allow { border-color: var(--allow); }
+  .crit .ch { font-size: 38px; font-weight: 700; margin-bottom: 14px; }
+  .crit .c-block .ch { color: var(--block); } .crit .c-warn .ch { color: var(--warn); } .crit .c-allow .ch { color: var(--allow); }
+  .crit .ch span { display: block; font: 600 17px var(--mono); color: var(--muted); text-transform: uppercase; letter-spacing: 1px; margin-top: 4px; }
+  .crit ul { list-style: none; margin: 0; padding: 0; }
+  .crit li { font-size: 24px; line-height: 1.3; padding: 9px 0; border-bottom: 1px solid var(--line); }
+
   /* video */
   .slide.video { padding: 54px 140px 60px; justify-content: flex-start; }
   .slide.video h2 { margin-bottom: 26px; font-size: 44px; }
@@ -170,6 +180,43 @@
     </div>
     <div class="evrow"><span class="t">+0.015 s</span><span class="w">connect 203.0.113.5:3333</span><span class="k2">kernel</span><span class="p2">python</span><span class="f">modeling_lazy.py:19</span><span class="ph2">during forward pass</span></div>
     <p class="small" style="margin-top:22px">About 3 seconds per repo (2.5–4.6 s measured). A hang, a crash or no Docker means Block.</p>
+  </section>
+
+  <!-- 4b · the criteria (0:40) -->
+  <section class="slide">
+    <h2>What makes a model unsafe</h2>
+    <div class="crit">
+      <div class="c c-block">
+        <div class="ch">Block <span>any one of these</span></div>
+        <ul>
+          <li>Opens a network connection</li>
+          <li>Starts a program or a shell</li>
+          <li>Reads keys, tokens or credential files</li>
+          <li>Hides a program in memory or renames its process</li>
+          <li>Decodes hidden data and runs it</li>
+          <li>Ships compiled code we can't read</li>
+          <li>Can't be fully checked: crash, timeout, no sandbox</li>
+        </ul>
+      </div>
+      <div class="c c-warn">
+        <div class="ch">Warn <span>a person should look</span></div>
+        <ul>
+          <li>Network or shell code that didn't fire</li>
+          <li><code>exec</code>, <code>eval</code> or encoded blobs</li>
+          <li>Pulls code from another repo</li>
+          <li>Text aimed at AI reviewers</li>
+          <li>Parts of the model we couldn't run</li>
+        </ul>
+      </div>
+      <div class="c c-allow">
+        <div class="ch">Allow <span>only if</span></div>
+        <ul>
+          <li>None of the above, in the code or when run</li>
+          <li>The load is locked to the exact commit we checked</li>
+        </ul>
+      </div>
+    </div>
+    <p class="small" style="margin-top:26px">Checked in the code and when it runs in the trap. Fixed rules decide, never the AI.</p>
   </section>
 
   <!-- 5 · demo (0:50) -->
