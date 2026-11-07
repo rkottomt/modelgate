@@ -347,4 +347,7 @@ def scan(bundle: CodeBundle) -> list[Finding]:
         if key not in seen:
             seen.add(key)
             uniq.append(f)
+    # a module-level side effect on a line that already has a specific finding adds no information
+    specific = {(f.file, f.line) for f in uniq if f.rule_id != "MG002-module-side-effect"}
+    uniq = [f for f in uniq if not (f.rule_id == "MG002-module-side-effect" and (f.file, f.line) in specific)]
     return sorted(uniq, key=lambda f: (SEVERITY_ORDER[f.severity], f.file, f.line))
