@@ -7,49 +7,107 @@
   <link rel="stylesheet" href="/static/style.css">
 </head>
 <body>
-  <header class="top">
-    <div class="brand"><span class="logo">◆</span> ModelGate <span class="tag">trust_remote_code safety gate</span></div>
-    <form id="scan-form" class="scan">
-      <input id="repo" name="repo" placeholder="org/model or fixtures/sneaky_model" autocomplete="off" spellcheck="false" required>
-      <input id="revision" name="revision" placeholder="revision (optional)" autocomplete="off" spellcheck="false">
+  <header class="bar">
+    <a class="wordmark" href="/">ModelGate</a>
+    <form id="scan-form" class="scan" autocomplete="off">
+      <label class="field grow">
+        <span class="label">Model repo</span>
+        <input id="repo" name="repo" placeholder="org/model-name" spellcheck="false" required>
+      </label>
+      <label class="field">
+        <span class="label">Revision</span>
+        <input id="revision" name="revision" placeholder="main" spellcheck="false">
+      </label>
       <button type="submit" id="go">Scan</button>
     </form>
-    <div id="fixtures" class="chips"></div>
   </header>
 
-  <main>
-    <section id="status" class="status hidden"></section>
+  <div class="layout">
+    <aside class="rail">
+      <h3>Examples</h3>
+      <ul id="fixtures" class="plain-list"></ul>
+      <h3>Recent scans</h3>
+      <ul id="history" class="plain-list"><li class="muted">None yet</li></ul>
+    </aside>
 
-    <section id="result" class="hidden">
-      <div id="banner" class="banner">
-        <div id="verdict" class="verdict"></div>
-        <div id="meta" class="meta"></div>
-      </div>
+    <main id="main">
+      <section id="intro" class="intro">
+        <h1>Check custom model code before it runs</h1>
+        <p>Loading a model with <code>trust_remote_code=True</code> runs Python from the repo on your machine.
+          ModelGate downloads that code (never the weights), reads it, runs it in a locked-down container, and tells you
+          whether it's safe to load.</p>
+        <dl class="verdict-key">
+          <div><dt class="t-allow">Allow</dt><dd>No risky behaviour found. Load it pinned to the scanned commit.</dd></div>
+          <div><dt class="t-warn">Warn</dt><dd>Something needs a human look, e.g. a network library or a reference to another repo.</dd></div>
+          <div><dt class="t-block">Block</dt><dd>The code tried something a model has no reason to do: opened a socket, read your keys, spawned a shell.</dd></div>
+        </dl>
+        <p class="muted">Verdicts come from fixed rules only. The AI write-up explains them and can't change them.
+          Press <kbd>/</kbd> to jump to the search box.</p>
+      </section>
 
-      <div id="isolation" class="alert hidden"></div>
+      <section id="progress" class="progress hidden" aria-live="polite">
+        <div class="progress-row"><span id="progress-text">Scanning</span><span id="progress-time" class="num muted"></span></div>
+        <ol class="steps">
+          <li>Resolve the revision to a commit and download code files</li>
+          <li>Read the code for risky calls and hidden instructions</li>
+          <li>Run it in an offline container and record what it does</li>
+          <li>Apply the rules</li>
+        </ol>
+      </section>
 
-      <div class="grid">
-        <div class="col">
-          <h2>Findings <span id="findings-count" class="count"></span></h2>
-          <p class="hint">Deterministic rules. These alone decide the verdict.</p>
-          <div id="findings"></div>
+      <section id="error" class="error hidden" role="alert"></section>
 
-          <div id="refs-wrap" class="hidden">
-            <h2>Referenced repos</h2>
-            <div id="refs"></div>
+      <section id="result" class="hidden">
+        <div id="verdict" class="verdict">
+          <div class="verdict-main">
+            <div id="verdict-word" class="verdict-word"></div>
+            <div id="verdict-line" class="verdict-line"></div>
+          </div>
+          <dl id="facts" class="facts"></dl>
+        </div>
+
+        <div id="isolation" class="notice hidden"></div>
+
+        <div id="next" class="next"></div>
+
+        <div class="cols">
+          <div class="col-main">
+            <div class="section-head">
+              <h2>Findings <span id="findings-count" class="num muted"></span></h2>
+              <div id="filters" class="filters" role="group" aria-label="Filter by severity"></div>
+            </div>
+            <div id="findings"></div>
+
+            <div id="refs-wrap" class="hidden">
+              <h2>Code pulled from other repos</h2>
+              <p class="muted small">Each referenced repo is scanned on its own; a block there blocks this model.</p>
+              <div id="refs"></div>
+            </div>
+          </div>
+
+          <div class="col-side">
+            <div class="section-head">
+              <h2>Plain-English summary</h2>
+              <span class="tag-advisory" title="Written by an LLM from the findings. It cannot change the verdict.">AI · advisory</span>
+            </div>
+            <div id="explanation" class="explanation"></div>
+
+            <div class="section-head">
+              <h2>What the code did when run</h2>
+              <button type="button" id="tl-toggle" class="linkish hidden"></button>
+            </div>
+            <p id="sandbox-mode" class="muted small"></p>
+            <ol id="timeline" class="timeline"></ol>
+
+            <details class="files">
+              <summary>Files scanned <span id="files-count" class="num muted"></span></summary>
+              <ul id="files" class="plain-list mono small"></ul>
+            </details>
           </div>
         </div>
-
-        <div class="col">
-          <h2>Sandbox timeline <span id="sandbox-mode" class="count"></span></h2>
-          <ol id="timeline" class="timeline"></ol>
-
-          <h2>AI explanation <span class="advisory">advisory; does not affect verdict</span></h2>
-          <div id="explanation" class="explanation"></div>
-        </div>
-      </div>
-    </section>
-  </main>
+      </section>
+    </main>
+  </div>
   <script src="/static/app.js"></script>
 </body>
 </html>
