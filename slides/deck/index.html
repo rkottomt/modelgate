@@ -33,7 +33,7 @@
 
   /* rows: label + text */
   .rows { border-top: 2px solid var(--ink); max-width: 1320px; }
-  .rows > div { display: grid; grid-template-columns: 260px 1fr; gap: 40px; padding: 26px 0; border-bottom: 1px solid var(--line); font-size: 32px; line-height: 1.35; }
+  .rows > div { display: grid; grid-template-columns: 290px 1fr; gap: 40px; padding: 26px 0; border-bottom: 1px solid var(--line); font-size: 32px; line-height: 1.35; }
   .rows dt, .rows .k { font-weight: 700; }
   .rows .d { color: var(--ink2); }
   .allow { color: var(--allow); } .warn { color: var(--warn); } .block { color: var(--block); }
@@ -51,6 +51,7 @@
   .nums { display: grid; grid-template-columns: repeat(3, 1fr); gap: 60px; border-top: 2px solid var(--ink); padding-top: 34px; }
   .num .v { font-size: 108px; font-weight: 700; letter-spacing: -2px; line-height: 1; }
   .num .l { font-size: 27px; line-height: 1.4; color: var(--ink2); margin-top: 18px; }
+  .num .when { display: block; margin-top: 10px; font: 600 21px var(--mono); color: var(--muted); }
 
   /* lists */
   ul.plain { list-style: none; padding: 0; margin: 0; max-width: 1250px; border-top: 2px solid var(--ink); }
@@ -71,122 +72,68 @@
 <body>
 <div id="stage">
 
-  <!-- 1 -->
+  <!-- 1 · title (0:15) -->
   <section class="slide">
     <div class="rule"></div>
     <h1>ModelGate</h1>
-    <p class="lead" style="margin-top:28px">A safety gate for AI models that run their own code.</p>
+    <p class="lead" style="margin-top:28px">Loading an AI model can run its author's code on your machine.<br>ModelGate checks that code first.</p>
     <p class="small" style="margin-top:80px">github.com/rkottomt/modelgate</p>
   </section>
 
-  <!-- 2 -->
+  <!-- 2 · the problem (0:50) -->
   <section class="slide">
-    <h2>Loading a model can run its author's code.</h2>
-    <div class="codeblock"><span class="k">from</span> transformers <span class="k">import</span> AutoModel
-
-model = AutoModel.from_pretrained(<span class="s">"org/model"</span>,
+    <h2>One flag runs a stranger's code.</h2>
+    <div class="codeblock">model = AutoModel.from_pretrained(<span class="s">"org/model"</span>,
                                   <span class="hl">trust_remote_code=<span class="k">True</span></span>)</div>
-    <p class="lead">That flag downloads Python from the repo and runs it on your machine, with your files, keys and
-      network, before you've called the model once.</p>
-  </section>
-
-  <!-- 3 -->
-  <section class="slide">
-    <h2>It's already happening.</h2>
     <div class="rows">
-      <div><span class="k">Feb 2024</span><span class="d">About 100 malicious models found on Hugging Face, some opening reverse shells.</span></div>
-      <div><span class="k">Jul 2026</span><span class="d">AI agents being tested escaped their sandbox and broke into Hugging Face's servers.</span></div>
-      <div><span class="k">Sep 2026</span><span class="d">31 repos used <code>trust_remote_code</code> to plant crypto miners. They passed existing scanners.</span></div>
+      <div><span class="k">It's everywhere</span><span class="d">Phi-3, Qwen, DeepSeek, ChatGLM, Jina and Nomic all need it to load.</span></div>
+      <div><span class="k">It runs first</span><span class="d">The repo's Python runs on import, with your keys, tokens and network, before you call the model.</span></div>
+      <div><span class="k">No one checks it</span><span class="d">The code can change with any push to the repo. Existing scanners mostly check the weights, not this code.</span></div>
     </div>
   </section>
 
-  <!-- 4 -->
+  <!-- 3 · it's happening (0:50) -->
   <section class="slide">
-    <h2>One line in front of every load.</h2>
-    <div class="codeblock"><span class="hl"><span class="k">import</span> modelgate.auto</span></div>
-    <div class="rows">
-      <div><span class="k allow">Allow</span><span class="d">Nothing risky found. Loads, locked to the exact commit we checked.</span></div>
-      <div><span class="k warn">Warn</span><span class="d">Needs a human look. Stops until someone approves it.</span></div>
-      <div><span class="k block">Block</span><span class="d">Tried something a model never needs to do. Stops, and says which line.</span></div>
+    <h2>It's already being exploited.</h2>
+    <div class="nums">
+      <div class="num"><div class="v">32,000</div><div class="l">downloads of 31 Hugging Face repos that used this flag to plant crypto miners and reverse shells. They passed three existing scanners. <span class="when">Sep–Oct 2026</span></div></div>
+      <div class="num"><div class="v">13 hrs</div><div class="l">for AI agents under test to escape through their one allowed network path and take admin control of Hugging Face servers. <span class="when">Jul 2026</span></div></div>
+      <div class="num"><div class="v">~100</div><div class="l">malicious models found on Hugging Face opening reverse shells on the machines that loaded them. <span class="when">Feb 2024</span></div></div>
     </div>
+    <p class="small" style="margin-top:44px">Models attack whoever loads them. Agents escape the box they were given. ModelGate checks both.</p>
   </section>
 
-  <!-- 5 -->
+  <!-- 4 · how it works (0:50) -->
   <section class="slide">
-    <h2>How it decides</h2>
+    <h2>One import. Checked before it runs.</h2>
+    <div class="codeblock" style="margin-bottom:40px"><span class="hl"><span class="k">import</span> modelgate.auto</span></div>
     <div class="steps">
       <div class="step"><div class="n">01</div><div class="t">Fetch the code</div><div class="d">Locked to one commit. Never the weights.</div></div>
       <div class="step"><div class="n">02</div><div class="t">Read it</div><div class="d">Risky calls, hidden blobs, notes aimed at AI reviewers.</div></div>
       <div class="step"><div class="n">03</div><div class="t">Run it offline</div><div class="d">Locked container, decoy keys, every system call recorded.</div></div>
-      <div class="step"><div class="n">04</div><div class="t">Fixed rules decide</div><div class="d">Anything it can't finish checking is blocked.</div></div>
+      <div class="step"><div class="n">04</div><div class="t">Fixed rules decide</div><div class="d"><span class="allow">Allow</span>, <span class="warn">Warn</span> or <span class="block">Block</span>. An AI explains why, but can't change it.</div></div>
     </div>
-    <p class="note">An AI then explains the result in plain English. It can't change it.</p>
+    <p class="note">For agents: say what the job is, approve the drafted guardrails, and every action is checked.</p>
   </section>
 
-  <!-- 6: video -->
+  <!-- 5 · demo (1:00) -->
   <section class="slide video">
     <h2>Demo</h2>
     <video id="demo" src="../../docs/modelgate_demo.mp4" poster="poster.jpg" controls preload="metadata" playsinline></video>
   </section>
 
-  <!-- 7 -->
+  <!-- 6 · results + next (0:45) -->
   <section class="slide">
-    <h2>The AI can't overrule the rules.</h2>
-    <ul class="plain">
-      <li>The verdict is final before the AI sees anything.</li>
-      <li>It gets a copy of the flagged lines, marked as untrusted. <span>Nothing it writes is read back.</span></li>
-      <li>A repo that tells AI reviewers "this is safe" still gets blocked. <span>And the summary calls it out.</span></li>
-    </ul>
-  </section>
-
-  <!-- 8 -->
-  <section class="slide">
-    <h2>Results</h2>
-    <div class="nums">
-      <div class="num"><div class="v">6 / 6</div><div class="l">test models handled correctly, including a hidden payload that only fires on a GPU</div></div>
-      <div class="num"><div class="v">0</div><div class="l">of 6 popular real models let through without review. 2 blocked wrongly; both explained.</div></div>
-      <div class="num"><div class="v">~3 s</div><div class="l">per scan, including running the code in the container</div></div>
+    <h2>Where it stands</h2>
+    <div class="nums" style="margin-bottom:56px">
+      <div class="num"><div class="v">6 / 6</div><div class="l">attack imitations caught, including one that only fires on a GPU</div></div>
+      <div class="num"><div class="v">0</div><div class="l">of 6 popular custom-code models let through unreviewed. 2 blocked by mistake; both explained.</div></div>
+      <div class="num"><div class="v">~3 s</div><div class="l">per scan, including running the code</div></div>
     </div>
-  </section>
-
-  <!-- 9 -->
-  <section class="slide">
-    <h2>New: the same gate for AI agents</h2>
-    <div class="steps three">
-      <div class="step"><div class="n">01</div><div class="t">Describe the job</div><div class="d">"Summarise this CSV. No internet, no credentials."</div></div>
-      <div class="step"><div class="n">02</div><div class="t">Tick the guardrails</div><div class="d">An AI drafts them from a fixed list. You approve. It's signed.</div></div>
-      <div class="step"><div class="n">03</div><div class="t">Run it offline</div><div class="d">Every connection, file write, program and secret read is checked.</div></div>
+    <div class="rows">
+      <div><span class="k">Not yet</span><span class="d">Payloads that wait hours. Docker shares the host kernel. Agents run fully offline.</span></div>
+      <div><span class="k">Next</span><span class="d">Approved internet access for agents through a key-holding proxy, token tracking, a stronger sandbox.</span></div>
     </div>
-    <p class="note">A demo agent copying the July 2026 escape: 5 violations, each pinned to its line, in 0.3 s.</p>
-  </section>
-
-  <!-- 10 -->
-  <section class="slide">
-    <h2>What it doesn't do (yet)</h2>
-    <ul class="plain">
-      <li>A payload that waits hours, or checks it's in a container, can slip past a short run.</li>
-      <li>Docker shares the host kernel. <span>A stronger sandbox (gVisor) is the next step.</span></li>
-      <li>Covers the <code>transformers</code> loader, not weights or other loaders.</li>
-      <li>Agents run fully offline for now. <span>No real internet access or token tracking yet.</span></li>
-    </ul>
-  </section>
-
-  <!-- 11 -->
-  <section class="slide">
-    <h2>What's next</h2>
-    <ul class="plain">
-      <li>Agents get only the hosts they're approved for, through a proxy that holds the API key.</li>
-      <li>Token and cost tracking next to what the agent did.</li>
-      <li>Re-check automatically whenever a repo's code changes.</li>
-      <li>A stronger sandbox, and more loaders.</li>
-    </ul>
-  </section>
-
-  <!-- 12 -->
-  <section class="slide">
-    <div class="rule"></div>
-    <h1>Thank you</h1>
-    <p class="lead" style="margin-top:28px">github.com/rkottomt/modelgate</p>
   </section>
 
 </div>

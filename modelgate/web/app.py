@@ -7,6 +7,8 @@ Only HF repo ids or bundled fixture names can be scanned (no arbitrary local pat
 from __future__ import annotations
 
 import copy
+import hashlib
+import json
 import os
 import re
 import secrets
@@ -129,6 +131,35 @@ def api_scan(repo: str = Query(..., max_length=200), revision: str | None = Quer
     return JSONResponse(report)
 
 
+def _disk_path(key: tuple) -> Path:
+    from ..policy import _home
+    h = hashlib.sha256("\0".join(str(k) for k in key).encode()).hexdigest()[:32]
+    return _home() / "explanations" / f"{h}.json"
+
+
+def _disk_get(key: tuple) -> dict | None:
+    """Advisory text only; a damaged or edited file just means a fresh explanation."""
+    try:
+        p = _disk_path(key)
+        if p.is_file() and p.stat().st_size < 200_000:
+            d = json.loads(p.read_text())
+            if isinstance(d, dict) and isinstance(d.get("summary"), str):
+                _explained[key] = d
+                return d
+    except (OSError, ValueError):
+        pass
+    return None
+
+
+def _disk_put(key: tuple, value: dict) -> None:
+    try:
+        p = _disk_path(key)
+        p.parent.mkdir(parents=True, exist_ok=True)
+        p.write_text(json.dumps(value))
+    except OSError:
+        pass
+
+
 @app.get("/api/explain")
 def api_explain(token: str = Query(..., max_length=40)):
     with _lock:
@@ -138,11 +169,15 @@ def api_explain(token: str = Query(..., max_length=40)):
     if report.get("explanation") is None:
         key = (report.get("sha"), report.get("code_hash"), report.get("verdict"))
         cached = _explained.get(key) if report.get("code_hash") else None
+        if cached is None and report.get("code_hash"):
+            cached = _disk_get(key)
         if cached is None:
             # deep copy: nothing the explainer returns flows back into the verdict
             cached = explain_mod.explain(copy.deepcopy(report))
             if cached.get("source") != "template" or not explain_mod.llm_config():
                 _explained[key] = cached
+                if report.get("code_hash") and cached.get("source") != "template":
+                    _disk_put(key, cached)
         report["explanation"] = cached
     return JSONResponse({"verdict": report["verdict"], "explanation": report["explanation"]})
 

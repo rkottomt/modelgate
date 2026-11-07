@@ -204,6 +204,8 @@ function renderVerdictLine(rep) {
   const box = $("verdict-line");
   clear(box);
   if (rep.allowlisted) { box.textContent = "This exact commit and code were approved earlier with a signed allowlist entry."; return; }
+  const noCode = (rep.sandbox || {}).mode === "skipped" && /no local remote-code/.test((rep.sandbox || {}).note || "");
+  if (rep.verdict === "ALLOW" && noCode) { box.textContent = "This repo has no custom code, so loading it only runs transformers' own built-in code."; return; }
   if (rep.verdict === "ALLOW") { box.textContent = "Nothing risky turned up in the code or when it ran in the sandbox."; return; }
   const items = rep.headline ? rep.headline.split("; ") : (rep.reasons || []).slice(0, 4);
   const ul = el("ul", "reasons");
@@ -238,8 +240,9 @@ function renderFacts(rep) {
   else fact(dl, "Source", "local folder");
   if (rep.code_hash) fact(dl, "Code hash", rep.code_hash.slice(0, 12), rep.code_hash);
   const sb = rep.sandbox || {};
-  const where = sb.mode === "docker" ? "container" + (sb.strace ? " + strace" : "") : (sb.mode || "?");
-  fact(dl, "Run in", where + (sb.status && sb.status !== "ok" ? ` (${sb.status})` : ""));
+  const where = sb.mode === "docker" ? "container" + (sb.strace ? " + strace" : "")
+    : /no local remote-code/.test(sb.note || "") ? "nothing to run" : (sb.mode || "?");
+  fact(dl, "Sandbox", where + (sb.status && !["ok", "skipped"].includes(sb.status) ? ` (${sb.status})` : ""));
   fact(dl, "Took", (rep.scan_seconds ?? "?") + "s");
 }
 
@@ -374,6 +377,7 @@ function renderTimeline() {
   const box = $("timeline");
   clear(box);
   const where = sb.mode === "docker" ? "Offline Docker container, no network, read-only filesystem, fake home directory with decoy keys."
+    : /no local remote-code/.test(sb.note || "") ? "Nothing to run: the repo has no custom code."
     : sb.mode === "skipped" ? "Not run: " + (sb.note || "skipped") + "."
     : "Mode: " + (sb.mode || "?") + (sb.note ? ". " + sb.note : "");
   $("sandbox-mode").textContent = where;
