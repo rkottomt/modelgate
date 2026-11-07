@@ -2,7 +2,8 @@
 import base64, pathlib, sys
 from playwright.sync_api import sync_playwright
 ROOT = pathlib.Path(__file__).resolve().parents[1]
-VIDEO = "https://drive.google.com/file/d/15GArDvuaBnmFyh9qrAGCWyC_mAGkBvph/view?usp=sharing"
+import os
+VIDEO = os.environ.get("MG_VIDEO_URL", "https://drive.google.com/file/d/1TpmjCylmENX_av-aFXLQxYK8aIzde66x/view?usp=sharing")
 OUT = pathlib.Path(sys.argv[1]) if len(sys.argv) > 1 else ROOT / "ModelGate_slides.pdf"
 url = (ROOT / "deck" / "index.html").as_uri()
 with sync_playwright() as p:
@@ -17,7 +18,7 @@ with sync_playwright() as p:
             video_pages.add(i)
             pg.evaluate("""(u) => { const v = document.getElementById('demo'); const a = document.createElement('a'); a.href = u;
               a.style.cssText = 'position:relative;display:block;width:1320px;height:742px;border-radius:4px;overflow:hidden;background:#000 url(poster.jpg) center/cover';
-              const play = document.createElement('div'); play.textContent = '▶  Watch the 1-minute demo';
+              const play = document.createElement('div'); play.textContent = '▶  Watch the demo';
               play.style.cssText = 'position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);background:#1c1d1f;color:#fff;font:700 34px system-ui;padding:22px 34px;border-radius:6px';
               a.appendChild(play); v.replaceWith(a); }""", VIDEO)
             pg.wait_for_timeout(400)
