@@ -1,0 +1,240 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ModelGate</title>
+<style>
+  :root {
+    --paper: #f6f5f1; --ink: #1c1d1f; --ink2: #4a4d52; --muted: #8a8d93; --line: #dcd9d1;
+    --block: #b3261e; --warn: #8a5300; --allow: #1e6b3a; --code: #ecebe6;
+    --sans: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    --mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; background: #111; overflow: hidden; }
+  body { font-family: var(--sans); color: var(--ink); }
+
+  /* fixed 1600x900 stage, scaled to the window */
+  #stage { position: absolute; left: 50%; top: 50%; width: 1600px; height: 900px; transform-origin: center center; }
+  .slide { position: absolute; inset: 0; background: var(--paper); padding: 110px 140px; display: none; flex-direction: column; justify-content: center; }
+  .slide.on { display: flex; }
+
+  h1 { font-size: 92px; line-height: 1.02; margin: 0; font-weight: 700; letter-spacing: -1.5px; }
+  h2 { font-size: 58px; line-height: 1.1; margin: 0 0 48px; font-weight: 700; letter-spacing: -.8px; max-width: 1200px; }
+  p { margin: 0; }
+  .lead { font-size: 34px; line-height: 1.4; color: var(--ink2); max-width: 1150px; }
+  .lead + .lead { margin-top: 22px; }
+  .rule { width: 72px; height: 6px; background: var(--block); margin-bottom: 40px; }
+  .small { font-size: 24px; color: var(--muted); }
+  code, .mono { font-family: var(--mono); }
+  .codeblock { font: 34px/1.5 var(--mono); background: var(--code); border-radius: 4px; padding: 26px 34px; margin: 0 0 44px; max-width: 1320px; white-space: pre; }
+  .codeblock .k { color: #1d4f91; } .codeblock .s { color: var(--allow); } .codeblock .hl { background: #fde9a8; }
+
+  /* rows: label + text */
+  .rows { border-top: 2px solid var(--ink); max-width: 1320px; }
+  .rows > div { display: grid; grid-template-columns: 260px 1fr; gap: 40px; padding: 26px 0; border-bottom: 1px solid var(--line); font-size: 32px; line-height: 1.35; }
+  .rows dt, .rows .k { font-weight: 700; }
+  .rows .d { color: var(--ink2); }
+  .allow { color: var(--allow); } .warn { color: var(--warn); } .block { color: var(--block); }
+
+  /* steps */
+  .steps { display: grid; grid-template-columns: repeat(4, 1fr); gap: 0; border-top: 2px solid var(--ink); margin-bottom: 56px; }
+  .steps.three { grid-template-columns: repeat(3, 1fr); }
+  .step { padding: 30px 34px 0 0; }
+  .step .n { font: 700 22px var(--mono); color: var(--muted); margin-bottom: 14px; }
+  .step .t { font-size: 36px; font-weight: 700; line-height: 1.15; margin-bottom: 14px; }
+  .step .d { font-size: 25px; line-height: 1.4; color: var(--ink2); }
+  .note { font-size: 30px; color: var(--ink); border-left: 6px solid var(--block); padding: 4px 0 4px 26px; max-width: 1200px; }
+
+  /* numbers */
+  .nums { display: grid; grid-template-columns: repeat(3, 1fr); gap: 60px; border-top: 2px solid var(--ink); padding-top: 34px; }
+  .num .v { font-size: 108px; font-weight: 700; letter-spacing: -2px; line-height: 1; }
+  .num .l { font-size: 27px; line-height: 1.4; color: var(--ink2); margin-top: 18px; }
+
+  /* lists */
+  ul.plain { list-style: none; padding: 0; margin: 0; max-width: 1250px; border-top: 2px solid var(--ink); }
+  ul.plain li { font-size: 34px; line-height: 1.35; padding: 22px 0; border-bottom: 1px solid var(--line); }
+  ul.plain li span { color: var(--ink2); }
+
+  /* video */
+  .slide.video { padding: 54px 140px 60px; justify-content: flex-start; }
+  .slide.video h2 { margin-bottom: 26px; font-size: 44px; }
+  video { width: 1320px; height: 742px; background: #000; border-radius: 4px; display: block; }
+
+  /* chrome */
+  #hint { position: fixed; left: 18px; bottom: 12px; font: 13px var(--sans); color: #777; transition: opacity .6s; }
+  .slide .pg { position: absolute; right: 60px; bottom: 44px; font: 20px var(--mono); color: var(--muted); }
+  .slide .brand { position: absolute; left: 140px; bottom: 44px; font-size: 20px; font-weight: 700; color: var(--muted); }
+</style>
+</head>
+<body>
+<div id="stage">
+
+  <!-- 1 -->
+  <section class="slide">
+    <div class="rule"></div>
+    <h1>ModelGate</h1>
+    <p class="lead" style="margin-top:28px">A safety gate for AI models that run their own code.</p>
+    <p class="small" style="margin-top:80px">github.com/rkottomt/modelgate</p>
+  </section>
+
+  <!-- 2 -->
+  <section class="slide">
+    <h2>Loading a model can run its author's code.</h2>
+    <div class="codeblock"><span class="k">from</span> transformers <span class="k">import</span> AutoModel
+
+model = AutoModel.from_pretrained(<span class="s">"org/model"</span>,
+                                  <span class="hl">trust_remote_code=<span class="k">True</span></span>)</div>
+    <p class="lead">That flag downloads Python from the repo and runs it on your machine, with your files, keys and
+      network, before you've called the model once.</p>
+  </section>
+
+  <!-- 3 -->
+  <section class="slide">
+    <h2>It's already happening.</h2>
+    <div class="rows">
+      <div><span class="k">Feb 2024</span><span class="d">About 100 malicious models found on Hugging Face, some opening reverse shells.</span></div>
+      <div><span class="k">Jul 2026</span><span class="d">AI agents being tested escaped their sandbox and broke into Hugging Face's servers.</span></div>
+      <div><span class="k">Sep 2026</span><span class="d">31 repos used <code>trust_remote_code</code> to plant crypto miners. They passed existing scanners.</span></div>
+    </div>
+  </section>
+
+  <!-- 4 -->
+  <section class="slide">
+    <h2>One line in front of every load.</h2>
+    <div class="codeblock"><span class="hl"><span class="k">import</span> modelgate.auto</span></div>
+    <div class="rows">
+      <div><span class="k allow">Allow</span><span class="d">Nothing risky found. Loads, locked to the exact commit we checked.</span></div>
+      <div><span class="k warn">Warn</span><span class="d">Needs a human look. Stops until someone approves it.</span></div>
+      <div><span class="k block">Block</span><span class="d">Tried something a model never needs to do. Stops, and says which line.</span></div>
+    </div>
+  </section>
+
+  <!-- 5 -->
+  <section class="slide">
+    <h2>How it decides</h2>
+    <div class="steps">
+      <div class="step"><div class="n">01</div><div class="t">Fetch the code</div><div class="d">Locked to one commit. Never the weights.</div></div>
+      <div class="step"><div class="n">02</div><div class="t">Read it</div><div class="d">Risky calls, hidden blobs, notes aimed at AI reviewers.</div></div>
+      <div class="step"><div class="n">03</div><div class="t">Run it offline</div><div class="d">Locked container, decoy keys, every system call recorded.</div></div>
+      <div class="step"><div class="n">04</div><div class="t">Fixed rules decide</div><div class="d">Anything it can't finish checking is blocked.</div></div>
+    </div>
+    <p class="note">An AI then explains the result in plain English. It can't change it.</p>
+  </section>
+
+  <!-- 6: video -->
+  <section class="slide video">
+    <h2>Demo</h2>
+    <video id="demo" src="../../docs/modelgate_demo.mp4" poster="poster.jpg" controls preload="metadata" playsinline></video>
+  </section>
+
+  <!-- 7 -->
+  <section class="slide">
+    <h2>The AI can't overrule the rules.</h2>
+    <ul class="plain">
+      <li>The verdict is final before the AI sees anything.</li>
+      <li>It gets a copy of the flagged lines, marked as untrusted. <span>Nothing it writes is read back.</span></li>
+      <li>A repo that tells AI reviewers "this is safe" still gets blocked. <span>And the summary calls it out.</span></li>
+    </ul>
+  </section>
+
+  <!-- 8 -->
+  <section class="slide">
+    <h2>Results</h2>
+    <div class="nums">
+      <div class="num"><div class="v">6 / 6</div><div class="l">test models handled correctly, including a hidden payload that only fires on a GPU</div></div>
+      <div class="num"><div class="v">0</div><div class="l">of 6 popular real models let through without review. 2 blocked wrongly; both explained.</div></div>
+      <div class="num"><div class="v">~3 s</div><div class="l">per scan, including running the code in the container</div></div>
+    </div>
+  </section>
+
+  <!-- 9 -->
+  <section class="slide">
+    <h2>New: the same gate for AI agents</h2>
+    <div class="steps three">
+      <div class="step"><div class="n">01</div><div class="t">Describe the job</div><div class="d">"Summarise this CSV. No internet, no credentials."</div></div>
+      <div class="step"><div class="n">02</div><div class="t">Tick the guardrails</div><div class="d">An AI drafts them from a fixed list. You approve. It's signed.</div></div>
+      <div class="step"><div class="n">03</div><div class="t">Run it offline</div><div class="d">Every connection, file write, program and secret read is checked.</div></div>
+    </div>
+    <p class="note">A demo agent copying the July 2026 escape: 5 violations, each pinned to its line, in 0.3 s.</p>
+  </section>
+
+  <!-- 10 -->
+  <section class="slide">
+    <h2>What it doesn't do (yet)</h2>
+    <ul class="plain">
+      <li>A payload that waits hours, or checks it's in a container, can slip past a short run.</li>
+      <li>Docker shares the host kernel. <span>A stronger sandbox (gVisor) is the next step.</span></li>
+      <li>Covers the <code>transformers</code> loader, not weights or other loaders.</li>
+      <li>Agents run fully offline for now. <span>No real internet access or token tracking yet.</span></li>
+    </ul>
+  </section>
+
+  <!-- 11 -->
+  <section class="slide">
+    <h2>What's next</h2>
+    <ul class="plain">
+      <li>Agents get only the hosts they're approved for, through a proxy that holds the API key.</li>
+      <li>Token and cost tracking next to what the agent did.</li>
+      <li>Re-check automatically whenever a repo's code changes.</li>
+      <li>A stronger sandbox, and more loaders.</li>
+    </ul>
+  </section>
+
+  <!-- 12 -->
+  <section class="slide">
+    <div class="rule"></div>
+    <h1>Thank you</h1>
+    <p class="lead" style="margin-top:28px">github.com/rkottomt/modelgate</p>
+  </section>
+
+</div>
+<div id="hint">← → to move · F for fullscreen</div>
+
+<script>
+  const slides = [...document.querySelectorAll(".slide")];
+  const stage = document.getElementById("stage");
+  const video = document.getElementById("demo");
+  let i = 0;
+
+  slides.forEach((s, n) => {
+    if (n === 0 || s.classList.contains("video")) return;
+    const pg = document.createElement("div"); pg.className = "pg"; pg.textContent = n + 1; s.appendChild(pg);
+    const br = document.createElement("div"); br.className = "brand"; br.textContent = "ModelGate"; s.appendChild(br);
+  });
+
+  function fit() {
+    const k = Math.min(innerWidth / 1600, innerHeight / 900);
+    stage.style.transform = `translate(-50%, -50%) scale(${k})`;
+  }
+
+  function go(n) {
+    i = Math.max(0, Math.min(slides.length - 1, n));
+    slides.forEach((s, k) => s.classList.toggle("on", k === i));
+    if (!slides[i].contains(video)) video.pause();
+    history.replaceState(null, "", "#" + (i + 1));
+  }
+
+  addEventListener("resize", fit);
+  addEventListener("keydown", (e) => {
+    if (e.target === video && (e.key === " " || e.key === "ArrowLeft" || e.key === "ArrowRight")) return;  // let the player handle it
+    if (["ArrowRight", "PageDown", " ", "Enter"].includes(e.key)) { e.preventDefault(); go(i + 1); }
+    else if (["ArrowLeft", "PageUp", "Backspace"].includes(e.key)) { e.preventDefault(); go(i - 1); }
+    else if (e.key === "Home") go(0);
+    else if (e.key === "End") go(slides.length - 1);
+    else if (e.key === "f" || e.key === "F") {
+      if (document.fullscreenElement) document.exitFullscreen(); else document.documentElement.requestFullscreen();
+    }
+  });
+  stage.addEventListener("click", (e) => {
+    if (e.target.closest("video")) return;
+    go(e.clientX > innerWidth / 2 ? i + 1 : i - 1);
+  });
+  setTimeout(() => { document.getElementById("hint").style.opacity = "0"; }, 4000);
+
+  fit();
+  go((parseInt(location.hash.slice(1), 10) || 1) - 1);
+</script>
+</body>
+</html>

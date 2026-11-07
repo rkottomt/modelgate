@@ -15,6 +15,7 @@ Hackathon slide materials for ModelGate.
 | `images/eval.png` | Eval summary and table drawn from `../eval_results.json` |
 | `images/agents_draft.png` | Agent guardrails page: AI-drafted contract for `rogue_eval_agent`, with checkboxes and its reasons |
 | `images/agents_run.png` | Agent guardrails page: run result, 5 violations with code lines, the timeline and resource use |
+| `deck/index.html` | **The slideshow.** Open it in a browser: arrow keys or click to move, F for fullscreen. Slide 6 plays `docs/modelgate_demo.mp4` |
 | `tools/` | Scripts that regenerate the images (`tools/build/` holds intermediate files) |
 
 ## Regenerate
