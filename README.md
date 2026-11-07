@@ -55,7 +55,7 @@ AutoModel.from_pretrained("fixtures/sneaky_model", trust_remote_code=True)
 
 Slides (PDF): https://drive.google.com/file/d/1qiljfNLHVQAQVrV4EJ4WqUsBCfFZNzpW/view?usp=sharing
 
-Demo video (1 min): https://drive.google.com/file/d/15GArDvuaBnmFyh9qrAGCWyC_mAGkBvph/view?usp=sharing (also [docs/modelgate_demo_1min.mp4](docs/modelgate_demo_1min.mp4); the 34 s cut used in the deck is [docs/modelgate_demo.mp4](docs/modelgate_demo.mp4))
+Demo video (1 min): https://drive.google.com/file/d/15GArDvuaBnmFyh9qrAGCWyC_mAGkBvph/view?usp=sharing (also [docs/modelgate_demo_1min.mp4](docs/modelgate_demo_1min.mp4); the 30 s cut used in the deck is [docs/modelgate_demo.mp4](docs/modelgate_demo.mp4))
 
 Popular-model check: `python scan_popular.py out.json` scans 40 popular custom-code repos; results from 7 Nov 2026 are in [slides/verified_models.json](slides/verified_models.json) (37 fetched, 2.9 s mean, none tried to connect out, start a program or touch keys in the sandbox).
 
