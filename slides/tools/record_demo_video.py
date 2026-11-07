@@ -135,8 +135,7 @@ with sync_playwright() as p:
     browser = p.chromium.launch()
     ctx = browser.new_context(viewport={"width": W, "height": H}, device_scale_factor=2, color_scheme="light")
     page = ctx.new_page()
-    page.goto("about:blank")
-    page.set_content(TERMINAL)
+    page.goto(BASE + "/")
 
     cdp = ctx.new_cdp_session(page)
 
@@ -154,52 +153,40 @@ with sync_playwright() as p:
         page.wait_for_selector("#result:not(.hidden)", timeout=180000)
         page.wait_for_selector("#progress.hidden", state="attached", timeout=180000)
 
-    # 1. terminal: one import, load refused
-    caption(page, "Add one import. Every trust_remote_code load is checked first.")
-    page.evaluate("() => { const c = document.getElementById('mg-cur'); if (c) c.style.display = 'none'; }")
-    page.wait_for_timeout(1500)
-    for ch in "python load_model.py":
-        page.evaluate("c => document.getElementById('cmd').textContent += c", ch)
-        page.wait_for_timeout(40)
-    page.wait_for_timeout(500)
-    page.evaluate("""() => { const d = document.createElement('div'); d.className = 'dim'; d.textContent = 'scanning remote code in the sandbox…'; document.getElementById('term').appendChild(d); }""")
-    page.wait_for_timeout(900)
-    page.evaluate("""t => { const term = document.getElementById('term');
-        const line = document.createElement('div'); line.style.marginTop = '8px';
-        const b = document.createElement('span'); b.className = 'blk'; b.textContent = 'BLOCKED';
-        line.appendChild(b); line.appendChild(document.createTextNode(' ' + t)); term.appendChild(line);
-        const r = document.createElement('div'); r.className = 'dim'; r.textContent = "ModelGateBlocked raised. The model's code never ran on this machine."; term.appendChild(r); }""", BLOCKED_TEXT)
-    caption(page, "Refused before the model's code runs: a reverse shell, a key read, a token grab.")
-    page.wait_for_timeout(4200)
-
-    # 2. dashboard: a payload that waits for a GPU
+    # 1. a real model from Hugging Face
     page.goto(BASE + "/")
     page.wait_for_selector("#fixtures button")
-    caption(page, "Some payloads wait. This one only fires inside forward(), and only on a GPU.")
-    page.wait_for_timeout(1600)
-    click(page, '[data-example="deferred_model"]')
-    trimmed_wait(wait_scan, head=1.0, tail=0.2)
-    caption(page, "Blocked. Reading the code or just importing it would have missed this.")
-    page.wait_for_timeout(3600)
-    caption(page, "The sandbox fakes a GPU, builds the model and runs it. The kernel saw the connection and the shell.")
-    scroll_to(page, ".col-main .section-head", 80)
-    page.wait_for_timeout(5200)
-
-    # 3. a real model: allowed, pinned
-    scroll_to(page, "body", 0)
-    page.wait_for_timeout(500)
-    caption(page, "A real model from Hugging Face with no hidden code: allowed.", "#1e6b3a")
-    type_into(page, "#repo", GOOD)
-    page.wait_for_timeout(300)
+    caption(page, "Paste a real model from Hugging Face: THUDM/chatglm3-6b.")
+    page.wait_for_timeout(900)
+    type_into(page, "#repo", "THUDM/chatglm3-6b", delay=35)
+    page.wait_for_timeout(200)
     click(page, "#go")
-    trimmed_wait(wait_scan, head=0.8, tail=0.2)
-    caption(page, "Allowed, and pinned to the exact commit that was checked. About three seconds per repo.", "#1e6b3a")
-    page.wait_for_timeout(4200)
+    trimmed_wait(wait_scan, head=1.0, tail=0.2)
+    caption(page, "Blocked in about 3 seconds, before any of its code runs on your machine.")
+    page.wait_for_timeout(3400)
+
+    # 2. why: the exact line
+    caption(page, "Why: line 28 decodes a hidden base64 + bz2 blob and loads it as native code.")
+    scroll_to(page, ".col-main .section-head.spaced", 70)
+    page.wait_for_timeout(5200)
+    caption(page, "Code that unpacks itself at runtime can't be checked, so it won't load.")
+    page.wait_for_timeout(3000)
+
+    # 3. a different model: allowed
+    scroll_to(page, "body", 0)
+    page.wait_for_timeout(400)
+    caption(page, "Pick a different model.", "#1e6b3a")
+    type_into(page, "#repo", GOOD, delay=30)
+    page.wait_for_timeout(200)
+    click(page, "#go")
+    trimmed_wait(wait_scan, head=0.6, tail=0.2)
+    caption(page, "No hidden code: allowed, and pinned to the exact commit that was checked.", "#1e6b3a")
+    page.wait_for_timeout(3600)
 
     # 4. end card
     page.goto("about:blank")
     page.set_content(END)
-    page.wait_for_timeout(2600)
+    page.wait_for_timeout(2000)
     t_end = time.time()
     cdp.send("Page.stopScreencast")
     browser.close()

@@ -1,7 +1,7 @@
 # ModelGate: 5-minute talk
 
 Open `slides/deck/index.html` in a browser from inside the repo (arrow keys to move, F for fullscreen).
-There are 9 slides, about **4:55** in total. The deck plays the 30-second cut. The 1-minute version for sharing is
+There are 9 slides, about **4:55** in total. The deck plays a 27-second cut on a real Hugging Face model. The 1-minute version for sharing is
 https://drive.google.com/file/d/15GArDvuaBnmFyh9qrAGCWyC_mAGkBvph/view?usp=sharing
 
 | # | Slide | Time | Running |
@@ -12,7 +12,7 @@ https://drive.google.com/file/d/15GArDvuaBnmFyh9qrAGCWyC_mAGkBvph/view?usp=shari
 | 4 | One import: checked before it runs | 0:25 | 1:40 |
 | 5 | Three seconds in the trap | 0:45 | 2:25 |
 | 6 | What makes a model unsafe | 0:40 | 3:05 |
-| 7 | Demo (30 s video) | 0:50 | 3:55 |
+| 7 | Demo (27 s video) | 0:45 | 3:50 |
 | 8 | Already checked: 37 popular models | 0:40 | 4:35 |
 | 9 | Close | 0:20 | 4:55 |
 
@@ -37,13 +37,13 @@ https://drive.google.com/file/d/15GArDvuaBnmFyh9qrAGCWyC_mAGkBvph/view?usp=shari
 "Here are our exact criteria. A model is **blocked** if any one of these happens. It opens a network connection. It starts a program or a shell. It reads keys, tokens or credential files. It hides a program in memory or renames its process. It decodes hidden data and runs it. It ships compiled code we can't read. Or we can't finish checking it, because it crashed, timed out or there was no sandbox. Then there's **warn**, which means a person should look: network or shell code that didn't fire, `exec` or encoded blobs, code pulled from another repo, text aimed at AI reviewers, or parts of the model we couldn't run. A model is **allowed** only if none of that happens, and then the load is locked to the exact commit we checked. Fixed rules make these calls, never the AI."
 (Maps to the code: sandbox rules SBX-NET, SBX-PROC, SBX-SENSITIVE/CANARY/EXFIL, SBX-MEMFD/PROCNAME, SBX-CRASH/TIMEOUT/NOT-ISOLATED; static rules MG100 combos, MG090 native files, MG062 blocked reference = Block. MG010–MG025, MG030, MG060, MG070, SBX-EXERCISE-INCOMPLETE = Warn.)
 
-## 7. Demo (0:50; the video is 30 s)
+## 7. Demo (0:45; the video is 27 s)
 Click play. While it runs:
-- "One import, and the load is refused before the code runs."
-- "This next one waits. It only fires inside `forward()`, and only on a GPU. The sandbox fakes a GPU and runs the model, and the kernel catches the connection and the shell."
-- "A real model with no hidden code is allowed, pinned to the exact commit we checked."
+- "This is a real model from Hugging Face, ChatGLM3. We paste it in, and it's blocked in about three seconds."
+- "Here's why. Line 28 decodes a hidden base64 + bz2 blob and loads it as native code. Code that unpacks itself at runtime can't be checked, so it won't load." (To be fair, it's a GPU kernel. The point is that nobody can verify that before it runs.)
+- "So we pick a different model. Qwen2.5 has no hidden code, so it's allowed and pinned to the exact commit we checked."
 
-If the video won't play, run the same flow live: start `modelgate serve`, open http://127.0.0.1:8000 and click "deferred model".
+The 56-second video on Drive also shows the sandbox catching payloads that only fire on a GPU.
 
 ## 8. Already checked: 37 popular models (0:40)
 "We didn't just test our own examples. We ran ModelGate over 37 of the most-used custom-code models on Hugging Face: Phi, Qwen, DeepSeek, GLM, InternVL, Jina, Nomic and more. It checked all 37 in 107 seconds, about 2.9 seconds each, and ran 29 of them inside the trap. None of them tried to connect out, start a program or touch keys. We also caught six out of six attack imitations. Seven models crashed on the current transformers version, so we couldn't watch them run, and ModelGate doesn't let them load. That's failing closed on purpose."
