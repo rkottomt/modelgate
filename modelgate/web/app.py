@@ -31,6 +31,7 @@ CSP = ("default-src 'none'; script-src 'self'; style-src 'self'; connect-src 'se
 MAX_KEPT = 50
 CONTEXT_LINES = 3
 _reports: OrderedDict[str, dict] = OrderedDict()   # token -> report (in-memory, this process only)
+_explained: dict[tuple, dict] = {}                # (sha, code_hash, verdict) -> explanation; same code => same input
 _lock = threading.Lock()
 
 app = FastAPI(title="ModelGate", docs_url=None, redoc_url=None)
@@ -128,8 +129,14 @@ def api_explain(token: str = Query(..., max_length=40)):
     if report is None:
         raise HTTPException(404, "Scan not found (the server may have restarted). Run the scan again.")
     if report.get("explanation") is None:
-        # deep copy: nothing the explainer returns flows back into the verdict
-        report["explanation"] = explain_mod.explain(copy.deepcopy(report))
+        key = (report.get("sha"), report.get("code_hash"), report.get("verdict"))
+        cached = _explained.get(key) if report.get("code_hash") else None
+        if cached is None:
+            # deep copy: nothing the explainer returns flows back into the verdict
+            cached = explain_mod.explain(copy.deepcopy(report))
+            if cached.get("source") != "template" or not explain_mod.llm_config():
+                _explained[key] = cached
+        report["explanation"] = cached
     return JSONResponse({"verdict": report["verdict"], "explanation": report["explanation"]})
 
 

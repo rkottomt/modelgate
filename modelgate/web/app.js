@@ -440,12 +440,13 @@ function renderExplanation(x) {
   const box = $("explanation");
   clear(box);
   if (!x) { box.appendChild(el("p", "muted", "No summary.")); return; }
-  const sentences = String(x.summary || "").match(/[^.!?]+[.!?]+(\s|$)|[^.!?]+$/g) || [];
-  const short = sentences.slice(0, 3).join("").trim();
+  // split only on sentence punctuation followed by whitespace, so "modeling_x.py" stays intact
+  const sentences = String(x.summary || "").split(/(?<=[.!?])\s+/).filter(Boolean);
+  const short = sentences.slice(0, 3).join(" ");
   const p = el("p", "", short);
   box.appendChild(p);
   const more = el("div", "hidden");
-  if (sentences.length > 3) more.appendChild(el("p", "", sentences.slice(3).join("").trim()));
+  if (sentences.length > 3) more.appendChild(el("p", "", sentences.slice(3).join(" ")));
   box.appendChild(more);
   if (x.findings && x.findings.length) {
     const ul = el("ul");
