@@ -26,7 +26,7 @@ To stay under 5:00, trim slides 3 and 5 rather than the demo.
 
 ## 3. Problem 1: the model you download runs its own code (0:50)
 - "In October, 31 models on Hugging Face were downloaded 32,000 times. Loading them planted crypto miners and reverse shells, and they passed three existing scanners."
-- "It works because of one flag, `trust_remote_code=True`. Many popular models need it, and it runs the repo's Python the moment you load the model, before you've called it once."
+- "It works because many popular models ship their own Python, and that code runs the moment you load the model, before you've called it once."
 - "Here's what that costs you. Your GPUs mine crypto for someone else. A stranger gets a shell on your machine, along with your SSH keys and API tokens."
 
 ## 4. Fix 1: ModelGate checks the code before it runs (0:40)
