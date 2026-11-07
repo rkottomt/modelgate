@@ -89,7 +89,7 @@ ALWAYS_LOG = {"socket.connect", "socket.getaddrinfo", "subprocess.Popen", "os.sy
 
 def emit(event, detail, **extra):
     file, line = _where()
-    if file is None and event not in ALWAYS_LOG and not event.startswith(("sandbox.", "module.", "phase.", "exercise.")):
+    if file is None and event not in ALWAYS_LOG and not event.startswith(("sandbox.", "module.", "phase.", "exercise.", "agent.", "resources")):
         return  # caused by a trusted library (torch/transformers), not the remote code
     rec = {"t": round(time.time() - _T0, 4), "ts": time.time(), "event": event, "detail": detail,
            "file": file, "line": line, "phase": PHASE}
@@ -110,6 +110,8 @@ def _open_interesting(path, mode):
     rp = os.path.realpath(path) if not path.startswith("/proc") else path
     if rp.startswith(SAVE_DIR):
         return False  # our own save_pretrained target
+    if rp.startswith(os.path.join(WORK, "workspace")) and not SPEC.get("log_workspace"):
+        return False  # agent's own scratch dir
     if rp.startswith(PKG_DIRS):
         return any(c in str(mode) for c in "wax+")  # reading own code/config is normal
     if rp.startswith(IGNORE_PREFIXES) or "__pycache__" in rp:
@@ -183,14 +185,19 @@ _env = os.environ
 os.environ = _WatchedEnviron(_env._data, _env.encodekey, _env.decodekey, _env.encodevalue, _env.decodevalue)
 
 # Preload what trust_remote_code would already have loaded.
-for _m in ("torch", "transformers", "transformers.modeling_utils", "transformers.configuration_utils",
-           "transformers.tokenization_utils", "transformers.tokenization_utils_fast"):
+AGENT_PRELOAD = ("socket", "subprocess", "csv", "json", "dataclasses", "typing", "collections", "logging", "argparse",
+                 "pathlib", "re", "sqlite3", "urllib.request", "http.client", "email.parser", "asyncio", "shutil",
+                 "tempfile", "datetime", "hashlib", "base64", "random", "string", "textwrap", "uuid")
+for _m in AGENT_PRELOAD if SPEC.get("agent") else ("torch", "transformers", "transformers.modeling_utils",
+           "transformers.configuration_utils", "transformers.tokenization_utils", "transformers.tokenization_utils_fast"):
     try:
         __import__(_m)
     except Exception:  # noqa: BLE001
         pass
 
 try:
+    if SPEC.get("agent"):
+        raise ImportError("agent mode: no torch preload")
     import torch  # noqa: E402
 except Exception:  # noqa: BLE001
     torch = None
@@ -233,6 +240,33 @@ def _purge():
         if name == PKG_NAME or name.startswith(PKG_NAME + "."):
             del sys.modules[name]
 
+
+# ---- agent mode: run an AI agent's entry script under the same hooks (modelgate run) ----
+if SPEC.get("agent"):
+    import resource  # noqa: E402
+    import runpy  # noqa: E402
+    WORKSPACE = os.path.join(WORK, "workspace")
+    os.makedirs(WORKSPACE, exist_ok=True)
+    os.chdir(WORKSPACE)
+    PHASE = "agent"
+    emit("agent.start", f"running {SPEC['agent']}")
+    rc = 0
+    try:
+        runpy.run_path(os.path.join(PKG_DIR, SPEC["agent"]), run_name="__main__")
+    except SystemExit as e:
+        rc = e.code if isinstance(e.code, int) else 0
+    except BaseException as e:  # noqa: BLE001
+        emit("agent.error", f"{type(e).__name__}: {e}"[:300], **_err(e))
+        rc = 3
+    PHASE = "end"
+    me, kids = resource.getrusage(resource.RUSAGE_SELF), resource.getrusage(resource.RUSAGE_CHILDREN)
+    emit("resources", "cpu %.2fs, peak memory %.0f MB" % (me.ru_utime + me.ru_stime + kids.ru_utime + kids.ru_stime,
+                                                         max(me.ru_maxrss, kids.ru_maxrss) / 1024),
+         cpu_s=round(me.ru_utime + me.ru_stime + kids.ru_utime + kids.ru_stime, 3),
+         max_rss_mb=round(max(me.ru_maxrss, kids.ru_maxrss) / 1024, 1))
+    emit("sandbox.end", f"agent exited ({rc})")
+    _log.flush()
+    os._exit(0 if rc in (0, None) else 3)
 
 status = 0
 loaded = {}

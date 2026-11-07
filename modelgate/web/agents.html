@@ -1,0 +1,88 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>ModelGate · Agents</title>
+  <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+  <header class="bar">
+    <a class="wordmark" href="/">ModelGate</a>
+    <nav class="nav">
+      <a href="/">Model scan</a>
+      <a href="/agents" aria-current="page">Agent guardrails</a>
+    </nav>
+  </header>
+
+  <div class="layout">
+    <aside class="rail">
+      <h3>Agents</h3>
+      <ul id="agents" class="plain-list"></ul>
+      <h3>Runs this session</h3>
+      <ul id="runs" class="plain-list"><li class="muted">None yet</li></ul>
+    </aside>
+
+    <main>
+      <section id="intro" class="intro">
+        <h1>Give an agent only what its job needs</h1>
+        <p>Describe what the agent is for. An AI drafts a list of guardrails, you tick the ones you want, and ModelGate
+          runs the agent in its offline container and checks every network call, file write, program start and secret
+          read against your list.</p>
+        <p class="muted">The AI only drafts. You approve. Fixed code does the checking, and the container has no network
+          whatever the list says.</p>
+        <p class="muted">Pick an agent on the left to start.</p>
+      </section>
+
+      <section id="agent" class="hidden">
+        <h1 id="agent-name"></h1>
+        <p id="agent-files" class="muted small mono"></p>
+
+        <div class="step">
+          <h2><span class="stepno">1</span>What is this agent supposed to do?</h2>
+          <textarea id="goal" rows="3" spellcheck="true"></textarea>
+          <div class="row">
+            <button type="button" id="propose" class="primary">Draft guardrails</button>
+            <span id="propose-status" class="muted small"></span>
+          </div>
+        </div>
+
+        <div id="step2" class="step hidden">
+          <div class="section-head">
+            <h2><span class="stepno">2</span>Tick the guardrails to enforce</h2>
+            <span id="draft-source" class="tag-advisory"></span>
+          </div>
+          <p id="draft-summary" class="small"></p>
+          <ul id="rails" class="rails"></ul>
+          <div class="row">
+            <button type="button" id="run" class="primary">Approve and run the agent</button>
+            <span id="run-status" class="muted small"></span>
+          </div>
+        </div>
+
+        <div id="step3" class="step hidden">
+          <h2><span class="stepno">3</span>What happened</h2>
+          <div id="verdict" class="verdict">
+            <div class="verdict-main">
+              <div id="verdict-word" class="verdict-word"></div>
+              <div id="verdict-line" class="verdict-line"></div>
+            </div>
+            <dl id="facts" class="facts"></dl>
+          </div>
+          <div class="cols">
+            <div class="col-main">
+              <div class="section-head"><h2>Guardrail violations <span id="viol-count" class="num muted"></span></h2></div>
+              <div id="violations"></div>
+            </div>
+            <div class="col-side">
+              <div class="section-head"><h2>What the agent did</h2></div>
+              <ol id="timeline" class="timeline"></ol>
+            </div>
+          </div>
+        </div>
+      </section>
+    </main>
+  </div>
+  <script src="/static/agents.js"></script>
+</body>
+</html>
