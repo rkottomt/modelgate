@@ -1,15 +1,28 @@
-"""Monkeypatch Transformers so every trust_remote_code load is scanned first."""
+"""Monkeypatch Transformers so every trust_remote_code load is scanned first, pinned, and verified.
+
+Choke points patched:
+  1. Auto*.from_pretrained(trust_remote_code=True)   -> scan, then force revision=<scanned SHA>
+  2. dynamic_module_utils.get_class_from_dynamic_module  -> scan (incl. cross-repo "org/repo--mod.Class")
+  3. dynamic_module_utils.get_cached_module_file     -> scan the repo it is about to copy code from,
+     force revision=<scanned SHA>, and after the copy into HF_MODULES_CACHE verify the file's sha256
+     matches what we scanned BEFORE transformers imports it.
+Out of scope: diffusers / vLLM / other loaders that don't go through transformers.dynamic_module_utils.
+"""
 from __future__ import annotations
 
 import functools
+import hashlib
 import importlib
+import inspect
 import os
+import re
 import sys
+from pathlib import Path
 
 from . import ModelGateBlocked, ModelGateWarn
 
 _installed = False
-_cleared: set[tuple[str, str | None]] = set()
+_cleared: dict[str, dict] = {}   # repo_key -> report that passed the gate
 
 DYNAMIC_USERS = [
     "transformers.dynamic_module_utils",
@@ -21,6 +34,7 @@ DYNAMIC_USERS = [
     "transformers.models.auto.processing_auto",
     "transformers.models.auto.video_processing_auto",
     "transformers.pipelines",
+    "transformers.generation.utils",
 ]
 AUTO_CLASSES = ["AutoConfig", "AutoModel", "AutoModelForCausalLM", "AutoModelForSeq2SeqLM", "AutoModelForSequenceClassification",
                 "AutoModelForMaskedLM", "AutoModelForTokenClassification", "AutoModelForImageClassification",
@@ -28,37 +42,40 @@ AUTO_CLASSES = ["AutoConfig", "AutoModel", "AutoModelForCausalLM", "AutoModelFor
 
 
 def _headline(report: dict) -> str:
-    """One-line human summary of the strongest evidence."""
     parts = []
     for f in report["findings"]:
         if f["severity"] != "critical" or len(parts) >= 4:
             continue
-        r = f["rule_id"]
-        loc = f"{f['file']} line {f['line']}"
+        r, loc = f["rule_id"], f"{f['file']} line {f['line']}"
         if r == "SBX-NET":
-            parts.append(f"{loc} attempts socket.connect to {f['snippet'].replace('connect to ', '')}")
+            m = re.search(r"(\d{1,3}(?:\.\d{1,3}){3}|[\w.-]+\.\w+)'?,?\s*:?\s*(\d+)?", f["snippet"].replace("connect to", ""))
+            dest = f"{m.group(1)}:{m.group(2)}" if m and m.group(2) else (m.group(1) if m else f["snippet"])
+            parts.append(f"{loc} attempts socket.connect to {dest}")
         elif r == "SBX-SENSITIVE":
             parts.append(f"{loc} reads decoy ~/.ssh/id_rsa" if "id_rsa" in f["snippet"] else f"{loc} reads {f['snippet']}")
         elif r == "SBX-PROC":
-            parts.append(f"{loc} spawns {f['snippet'].split()[1] if len(f['snippet'].split()) > 1 else 'a process'}")
-        elif r == "SBX-CANARY":
-            parts.append(f"{loc} reads canary credential")
-        elif r.startswith("SBX-") or not any(p.startswith(loc) for p in parts):
-            if r.startswith("SBX-") or r.startswith("MG"):
-                parts.append(f"{loc}: {f['message']}")
-    return "; ".join(parts[:4]) or "; ".join(report["reasons"][:3])
+            exe = f["snippet"].split()[1] if len(f["snippet"].split()) > 1 else "a process"
+            parts.append(f"{loc} spawns {exe.strip(chr(34))}")
+        elif r.startswith(("SBX-", "MG")):
+            parts.append(f"{loc}: {f['message']}")
+    return "; ".join(parts) or "; ".join(report["reasons"][:3])
 
 
-def gate(target: str, revision: str | None = None) -> dict | None:
-    """Scan `target` and raise on BLOCK (or WARN without MODELGATE_ALLOW_WARN=1)."""
+def _revs(rev) -> set:
+    return {str(x) for x in (rev, getattr(rev, "initial", None), getattr(rev, "resolved", None)) if x}
+
+
+def gate(target: str, revision=None) -> dict:
+    """Scan `target` (once per process per revision); raise on BLOCK, or WARN without MODELGATE_ALLOW_WARN=1."""
     from .scanner import repo_key, scan
 
-    key = (repo_key(str(target)), revision)
-    if key in _cleared:
-        return None
-    report = scan(str(target), revision)
-    quiet = os.environ.get("MODELGATE_QUIET") == "1"
-    if not quiet and report["verdict"] != "ALLOW":
+    key = repo_key(str(target))
+    cached = _cleared.get(key)
+    if cached and (not _revs(revision) or _revs(revision) & {str(cached.get("revision")), str(cached.get("sha"))}):
+        return cached
+    rev = getattr(revision, "resolved", None) or (str(revision) if revision else None)
+    report = scan(str(target), rev)
+    if os.environ.get("MODELGATE_QUIET") != "1" and report["verdict"] != "ALLOW":
         from rich.console import Console
 
         from .cli import render
@@ -69,8 +86,58 @@ def gate(target: str, revision: str | None = None) -> dict | None:
     if report["verdict"] == "WARN" and os.environ.get("MODELGATE_ALLOW_WARN") != "1":
         raise ModelGateWarn(f"ModelGate WARN for {target}: review the report, then set MODELGATE_ALLOW_WARN=1 or run "
                             f"`modelgate allow {target}`. Report: {report['report_path']}", report["report_path"], report)
-    _cleared.add(key)
+    _cleared[key] = report
     return report
+
+
+def verify_cached_module(report: dict, module_file: str, cached_path: str) -> None:
+    """The file transformers is about to import must be byte-identical to what we scanned."""
+    from transformers.dynamic_module_utils import HF_MODULES_CACHE
+
+    p = Path(cached_path)
+    if not p.is_absolute():
+        p = Path(HF_MODULES_CACHE) / cached_path
+    scanned = report.get("bundle", {}).get("files", {})
+    targets = [(module_file, p)]
+    # relative imports were copied next to it; verify those too
+    for sib in p.parent.glob("*.py"):
+        rel = (Path(module_file).parent / sib.name).as_posix()
+        if rel != module_file and rel in scanned:
+            targets.append((rel, sib))
+    for rel, path in targets:
+        expected = scanned.get(rel)
+        if report.get("allowlisted") and expected is None:
+            continue
+        actual = hashlib.sha256(path.read_bytes()).hexdigest() if path.is_file() else None
+        if expected is None or actual != expected:
+            raise ModelGateBlocked(f"ModelGate BLOCKED: cached module {path} does not match the scanned code "
+                                   f"(expected {str(expected)[:12]}, got {str(actual)[:12]}). Refusing to import.",
+                                   report.get("report_path"), report)
+
+
+def _bind(orig, args, kwargs):
+    ba = inspect.signature(orig).bind_partial(*args, **kwargs)
+    return ba
+
+
+def _wrap_cached_module_file(orig):
+    if getattr(orig, "_modelgate", False):
+        return orig
+
+    @functools.wraps(orig)
+    def wrapper(*args, **kwargs):
+        ba = _bind(orig, args, kwargs)
+        repo = str(ba.arguments["pretrained_model_name_or_path"])
+        module_file = ba.arguments["module_file"]
+        report = gate(repo, ba.arguments.get("revision"))
+        if report.get("sha"):
+            ba.arguments["revision"] = report["sha"]   # pin: transformers fetches exactly what we scanned
+        result = orig(*ba.args, **ba.kwargs)
+        verify_cached_module(report, module_file, result)
+        return result
+
+    wrapper._modelgate = True
+    return wrapper
 
 
 def _wrap_dynamic(orig):
@@ -78,12 +145,17 @@ def _wrap_dynamic(orig):
         return orig
 
     @functools.wraps(orig)
-    def wrapper(class_reference, pretrained_model_name_or_path, *args, **kwargs):
-        revision = kwargs.get("code_revision") or kwargs.get("revision")
-        if "--" in class_reference:  # code lives in ANOTHER repo: scan that one too
-            gate(class_reference.split("--", 1)[0], revision)
-        gate(str(pretrained_model_name_or_path), revision)
-        return orig(class_reference, pretrained_model_name_or_path, *args, **kwargs)
+    def wrapper(*args, **kwargs):
+        ba = _bind(orig, args, kwargs)
+        ref = ba.arguments["class_reference"]
+        path = str(ba.arguments["pretrained_model_name_or_path"])
+        rev = ba.arguments.get("code_revision") or ba.arguments.get("revision")
+        report = gate(path, rev)
+        if "--" in ref:
+            gate(ref.split("--", 1)[0], None)   # code from ANOTHER repo: scanned + pinned in get_cached_module_file
+        elif report.get("sha"):
+            ba.arguments["code_revision"] = report["sha"]
+        return orig(*ba.args, **ba.kwargs)
 
     wrapper._modelgate = True
     return wrapper
@@ -100,7 +172,11 @@ def _wrap_from_pretrained(cls):
     @functools.wraps(func)
     def from_pretrained(klass, pretrained_model_name_or_path, *args, **kwargs):
         if kwargs.get("trust_remote_code"):
-            gate(str(pretrained_model_name_or_path), kwargs.get("code_revision") or kwargs.get("revision"))
+            report = gate(str(pretrained_model_name_or_path), kwargs.get("code_revision") or kwargs.get("revision"))
+            if report.get("sha"):
+                kwargs["revision"] = report["sha"]   # pin weights + code to the scanned commit
+                if "code_revision" in kwargs:
+                    kwargs["code_revision"] = report["sha"]
         return func(klass, pretrained_model_name_or_path, *args, **kwargs)
 
     from_pretrained._modelgate = True
@@ -112,14 +188,17 @@ def install() -> None:
     if _installed:
         return
     dmu = importlib.import_module("transformers.dynamic_module_utils")
-    wrapped = _wrap_dynamic(dmu.get_class_from_dynamic_module)
+    wrapped_cls = _wrap_dynamic(dmu.get_class_from_dynamic_module)
+    wrapped_file = _wrap_cached_module_file(dmu.get_cached_module_file)
     for name in DYNAMIC_USERS:
         try:
             mod = importlib.import_module(name)
-        except Exception:  # noqa: BLE001  optional pieces (e.g. video) may be missing
+        except Exception:  # noqa: BLE001  optional pieces may be missing
             continue
         if hasattr(mod, "get_class_from_dynamic_module"):
-            mod.get_class_from_dynamic_module = wrapped
+            mod.get_class_from_dynamic_module = wrapped_cls
+        if hasattr(mod, "get_cached_module_file"):
+            mod.get_cached_module_file = wrapped_file
     import transformers
 
     for name in AUTO_CLASSES:
@@ -129,4 +208,4 @@ def install() -> None:
             continue
     _installed = True
     if os.environ.get("MODELGATE_QUIET") != "1":
-        print("[modelgate] gate installed: trust_remote_code loads will be scanned first", file=sys.stderr)
+        print("[modelgate] gate installed: trust_remote_code loads will be scanned, pinned and verified", file=sys.stderr)

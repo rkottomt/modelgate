@@ -1,0 +1,10 @@
+{
+  "model_type": "vocabnet",
+  "architectures": ["VocabNetModel"],
+  "auto_map": {
+    "AutoConfig": "configuration_vocab.VocabNetConfig",
+    "AutoModel": "modeling_vocab.VocabNetModel"
+  },
+  "hidden_size": 64,
+  "vocab_size": 1000
+}

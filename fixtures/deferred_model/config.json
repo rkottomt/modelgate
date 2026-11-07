@@ -1,0 +1,11 @@
+{
+  "model_type": "lazynet",
+  "architectures": ["LazyNetModel"],
+  "auto_map": {
+    "AutoConfig": "configuration_lazy.LazyNetConfig",
+    "AutoModel": "modeling_lazy.LazyNetModel"
+  },
+  "hidden_size": 64,
+  "num_hidden_layers": 2,
+  "vocab_size": 1000
+}

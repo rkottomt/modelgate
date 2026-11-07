@@ -1,12 +1,24 @@
-"""Dynamic analysis: import the auto_map modules inside a sandbox and record behavior."""
+"""Dynamic analysis: run the repo's code inside a locked-down container and record behavior.
+
+- Files go into the container as a tar stream on stdin (no bind mounts), after symlink/realpath checks.
+- docker run --network none --read-only --tmpfs /tmp --cap-drop ALL --security-opt no-new-privileges
+  --user 65534 --pids-limit 256 --memory 1g
+- strace (outside the Python process) is ground truth; the Python audit hook is telemetry for file:line.
+- No Docker => the code is NOT executed and the verdict is BLOCK ("not isolated"), unless
+  MODELGATE_ALLOW_UNISOLATED=1 opts into a best-effort subprocess run.
+"""
 from __future__ import annotations
 
+import io
 import json
 import os
 import re
+import secrets
 import shutil
+import string
 import subprocess
 import sys
+import tarfile
 import tempfile
 import time
 from dataclasses import asdict, dataclass, field
@@ -15,32 +27,46 @@ from pathlib import Path
 from .fetch import CodeBundle
 
 IMAGE = os.environ.get("MODELGATE_IMAGE", "modelgate-sandbox:latest")
-# Total wall-clock budget incl. container start + torch/transformers import (~10s under strace).
-TIMEOUT = int(os.environ.get("MODELGATE_SANDBOX_TIMEOUT", "45"))
+# Total wall-clock budget incl. container start + torch/transformers import (~5-10s).
+TIMEOUT = int(os.environ.get("MODELGATE_SANDBOX_TIMEOUT", "60"))
 PKG_NAME = "mg_remote"
 RUNNER = Path(__file__).with_name("sandbox_runner.py")
-CANARIES = {
-    "HF_TOKEN": "hf_MODELGATEcanary000000000000000000",
-    "HUGGING_FACE_HUB_TOKEN": "hf_MODELGATEcanary000000000000000000",
-    "AWS_ACCESS_KEY_ID": "AKIAMODELGATECANARY0",
-    "AWS_SECRET_ACCESS_KEY": "MODELGATE/canary/secret/0000000000000000",
-    "OPENAI_API_KEY": "sk-MODELGATE-canary",
-}
+HOSTNAME = "gpu-node-07"
+SANDBOX_HOME = "/home/mlops"
+EVENTS_BEGIN, EVENTS_END = "===MG_EVENTS_BEGIN===", "===MG_EVENTS_END==="
 
 
 @dataclass
 class SandboxResult:
-    mode: str                 # docker | subprocess | skipped
+    mode: str                 # docker | subprocess | none | skipped
     isolated: bool
-    status: str               # ok | timeout | crash | missing_dependency | skipped | error
+    status: str               # ok | timeout | crash | missing_dependency | skipped | not_isolated | error
     exit_code: int | None
     duration: float
     events: list[dict] = field(default_factory=list)
     strace: bool = False
     note: str = ""
+    canaries: dict = field(default_factory=dict, repr=False)
 
     def to_dict(self) -> dict:
-        return asdict(self)
+        d = asdict(self)
+        d.pop("canaries", None)   # canary values never leave this module (or reach the LLM)
+        return d
+
+
+def make_canaries() -> dict[str, str]:
+    """Fresh, realistically formatted fake credentials for every scan."""
+    alnum = string.ascii_letters + string.digits
+    up = string.ascii_uppercase + string.digits
+    rnd = lambda chars, n: "".join(secrets.choice(chars) for _ in range(n))  # noqa: E731
+    hf = "hf_" + rnd(string.ascii_letters, 34)
+    return {
+        "HF_TOKEN": hf,
+        "HUGGING_FACE_HUB_TOKEN": hf,
+        "AWS_ACCESS_KEY_ID": "AKIA" + rnd(up, 16),
+        "AWS_SECRET_ACCESS_KEY": rnd(alnum + "/+", 40),
+        "OPENAI_API_KEY": "sk-proj-" + rnd(alnum, 48),
+    }
 
 
 def docker_available() -> bool:
@@ -53,94 +79,126 @@ def docker_available() -> bool:
         return False
 
 
-def _prepare(bundle: CodeBundle, work: Path) -> Path:
-    """Copy remote code into work/pkg/mg_remote/ as a package (like HF_MODULES_CACHE does)."""
-    pkg = work / "pkg" / PKG_NAME
-    pkg.mkdir(parents=True)
-    for rel in bundle.files:
-        if rel.endswith(".py"):
-            dst = pkg / rel
-            dst.parent.mkdir(parents=True, exist_ok=True)
-            shutil.copy2(bundle.root / rel, dst)
-    init = pkg / "__init__.py"
-    if not init.exists():
-        init.write_text("")
-    shutil.copy2(RUNNER, work / "runner.py")
-    out = work / "out"
-    out.mkdir()
-    os.chmod(out, 0o777)
-    return out
+def _spec(bundle: CodeBundle, modules: list[str]) -> dict:
+    refs = [{"kind": e.kind, "key": e.key, "module": e.module, "class_name": e.class_name}
+            for e in bundle.auto_map if e.other_repo is None and e.module in modules]
+    return {"modules": modules, "refs": refs, "fake_gpu": True}
 
 
-STRACE_RE = re.compile(r"^(?:\[pid\s+)?(\d+)\]?\s*(\d+\.\d+)?\s*(\w+)\((.*)\)\s*=\s*(-?\d+|\?)")
+def _safe_members(bundle: CodeBundle):
+    """(arcname, real path) for every scanned file, re-checking symlinks and containment."""
+    root = os.path.realpath(bundle.root)
+    for rel in sorted(bundle.files):
+        if rel.startswith("/") or ".." in rel.split("/"):
+            raise ValueError(f"unsafe path {rel!r}")
+        full = os.path.join(root, rel)
+        if os.path.islink(full) or os.path.commonpath([root, os.path.realpath(full)]) != root:
+            raise ValueError(f"symlink or path escape: {rel!r}")
+        yield rel, full
 
 
-def parse_strace(text: str, t0: float | None = None) -> list[dict]:
-    """Parse `strace -f -ttt` output. Events before t0 (runner setup / library preload) are dropped."""
+def build_tar(bundle: CodeBundle, spec: dict) -> bytes:
+    buf = io.BytesIO()
+    with tarfile.open(fileobj=buf, mode="w") as tar:
+        def add_bytes(name: str, data: bytes, mode: int = 0o644):
+            ti = tarfile.TarInfo(name)
+            ti.size, ti.mode, ti.mtime = len(data), mode, int(time.time())
+            tar.addfile(ti, io.BytesIO(data))
+
+        add_bytes("runner.py", RUNNER.read_bytes())
+        add_bytes("spec.json", json.dumps(spec).encode())
+        has_init = False
+        for rel, full in _safe_members(bundle):
+            with open(full, "rb") as f:
+                add_bytes(f"pkg/{PKG_NAME}/{rel}", f.read())
+            has_init |= rel == "__init__.py"
+        if not has_init:
+            add_bytes(f"pkg/{PKG_NAME}/__init__.py", b"")
+    return buf.getvalue()
+
+
+# --- strace parsing -------------------------------------------------------------
+LINE_RE = re.compile(r"^(?:\[pid\s+)?(?:(\d+)\]?\s+)?(\d{9,}\.\d+)\s+(\w+)\((.*)$")  # pid is omitted while single-process
+
+
+def parse_strace(text: str, t0: float | None = None, canaries: dict | None = None) -> list[dict]:
+    """Parse `strace -f -ttt` output into timeline events. Lines before t0 (setup/preload) are dropped."""
     events, first_exec = [], True
+    canary_vals = [v for v in (canaries or {}).values() if v]
     for raw in text.splitlines():
-        line = raw.strip()
-        m = re.match(r"^(\d+)\s+(\d+\.\d+)\s+(\w+)\((.*)$", line)
+        m = LINE_RE.match(raw.strip())
         if not m:
             continue
         pid, ts, call, rest = m.groups()
+        pid = pid or 0
         ts = float(ts)
+        if call == "execve" and first_exec:
+            first_exec = False   # the runner itself
+            continue
         if t0 is None:
             t0 = ts
         if ts < t0:
             continue
         rec = None
-        if call == "execve":
-            if first_exec:
-                first_exec = False
-                continue
-            rec = ("process.execve", "execve " + rest.split(",")[0])
-        elif call in ("clone", "clone3", "fork", "vfork"):
-            continue  # Python threads also clone; execve is the signal we care about
-        elif call == "connect" and ("AF_INET" in rest):
+        if call in ("execve", "execveat"):
+            target = rest.split(",")[0]
+            fileless = "/proc/self/fd" in target or "/dev/fd" in target
+            rec = ("process.execve", f"execve {target}" + ("  [fileless: exec from memfd]" if fileless else ""))
+        elif call == "connect" and "AF_INET" in rest:
             addr = re.search(r'inet_addr\("([^"]+)"\)|inet_pton\(AF_INET6, "([^"]+)"', rest)
             port = re.search(r"htons\((\d+)\)", rest)
             host = (addr.group(1) or addr.group(2)) if addr else "?"
             rec = ("net.connect", f"connect to {host}:{port.group(1) if port else '?'}")
         elif call == "memfd_create":
             rec = ("memfd_create", "memfd_create " + rest.split(",")[0])
+        elif call == "prctl" and "PR_SET_NAME" in rest:
+            rec = ("prctl.set_name", "prctl(PR_SET_NAME) " + rest[:80])
         elif call in ("openat", "open"):
             p = re.search(r'"([^"]+)"', rest)
             path = p.group(1) if p else ""
-            if re.search(r"\.ssh|\.aws|/etc/passwd|/etc/shadow|cron|/proc/self/environ|\.netrc", path):
+            if re.search(r"\.ssh|\.aws|/etc/passwd|/etc/shadow|cron|/proc/self/environ|\.netrc|/\.dockerenv", path):
                 rec = ("file.open", f"open {path}")
+        if canary_vals and call in ("sendto", "sendmsg", "connect") and any(v[:12] in rest for v in canary_vals):
+            events.append({"t": round(ts - t0, 4), "event": "canary.exfil", "detail": f"{call}() carried a canary credential",
+                           "pid": int(pid), "source": "strace", "file": None, "line": None})
         if rec:
             events.append({"t": round(ts - t0, 4), "event": rec[0], "detail": rec[1], "pid": int(pid),
                            "source": "strace", "file": None, "line": None})
     return events
 
 
-def _read_events(out: Path) -> list[dict]:
+def _parse_events(text: str) -> list[dict]:
     events = []
-    log = out / "events.jsonl"
-    if log.exists():
-        for line in log.read_text(errors="replace").splitlines():
-            try:
-                e = json.loads(line)
-                e.setdefault("source", "audit")
+    for line in text.splitlines():
+        try:
+            e = json.loads(line)
+            if isinstance(e, dict) and "event" in e:
+                e["source"] = "audit"
+                e["t"] = float(e.get("t", 0))
                 events.append(e)
-            except json.JSONDecodeError:
-                continue
+        except (json.JSONDecodeError, ValueError, TypeError):
+            continue
     return events
 
 
 def run(bundle: CodeBundle, force_mode: str | None = None) -> SandboxResult:
     modules = bundle.local_modules
     if not modules:
-        return SandboxResult("skipped", True, "skipped", None, 0.0, note="no local auto_map modules to execute")
+        return SandboxResult("skipped", True, "skipped", None, 0.0, note="no local remote-code modules to execute")
+    try:
+        spec = _spec(bundle, modules)
+        tar = build_tar(bundle, spec)
+    except (ValueError, OSError) as e:
+        return SandboxResult("none", True, "error", None, 0.0, note=f"refused to stage files: {e}")
 
     use_docker = force_mode == "docker" or (force_mode is None and docker_available())
-    work = Path(tempfile.mkdtemp(prefix="modelgate_sbx_"))
-    try:
-        out = _prepare(bundle, work)
-        return _run_docker(work, out, modules) if use_docker else _run_subprocess(work, out, modules)
-    finally:
-        shutil.rmtree(work, ignore_errors=True)
+    if use_docker:
+        return _run_docker(tar)
+    if force_mode == "subprocess" or os.environ.get("MODELGATE_ALLOW_UNISOLATED") == "1":
+        return _run_subprocess(tar)
+    return SandboxResult("none", False, "not_isolated", None, 0.0,
+                         note="Docker (with image modelgate-sandbox) is unavailable, so the code was NOT executed. "
+                              "Set MODELGATE_ALLOW_UNISOLATED=1 to run a best-effort, non-isolated analysis.")
 
 
 def _status(code: int | None, timed_out: bool) -> str:
@@ -149,62 +207,74 @@ def _status(code: int | None, timed_out: bool) -> str:
     return {0: "ok", 2: "missing_dependency"}.get(code, "crash")
 
 
-def _run_docker(work: Path, out: Path, modules: list[str]) -> SandboxResult:
-    name = f"modelgate-{os.getpid()}-{int(time.time() * 1000)}"
-    env_args = []
-    for k, v in {**CANARIES, "HOME": "/tmp/home", "MG_SANDBOX": "1", "PYTHONDONTWRITEBYTECODE": "1",
-                 "HF_HUB_OFFLINE": "1", "TRANSFORMERS_OFFLINE": "1"}.items():
-        env_args += ["-e", f"{k}={v}"]
-    base = ["docker", "run", "--rm", "--name", name, "--network", "none", "--read-only",
-            "--tmpfs", "/tmp:rw,exec,size=64m", "--cap-drop", "ALL", "--security-opt", "no-new-privileges",
-            "--pids-limit", "64", "--memory", "512m", "--cpus", "1",
-            "-v", f"{work / 'pkg'}:/work/pkg:ro", "-v", f"{work / 'runner.py'}:/work/runner.py:ro",
-            "-v", f"{out}:/out:rw", *env_args, IMAGE]
-    py = ["python", "-I", "-B", "/work/runner.py", "/out/events.jsonl", "/work/pkg", PKG_NAME, *modules]
-    strace_cmd = ["strace", "-f", "-qq", "-ttt", "--seccomp-bpf", "-o", "/out/strace.log",
-                  "-e", "trace=connect,sendto,execve,execveat,memfd_create,openat,open", *py]
-
+def _run_docker(tar: bytes) -> SandboxResult:
+    canaries = make_canaries()
+    name = f"modelgate-{os.getpid()}-{secrets.token_hex(4)}"
+    env = {**canaries, "HOME": SANDBOX_HOME, "USER": "mlops", "LOGNAME": "mlops", "MG_SANDBOX": "1",
+           "CUDA_VISIBLE_DEVICES": "0", "PYTHONDONTWRITEBYTECODE": "1", "HF_HUB_OFFLINE": "1",
+           "TRANSFORMERS_OFFLINE": "1", "TOKENIZERS_PARALLELISM": "false", "OMP_NUM_THREADS": "1"}
+    env_args = [a for k, v in env.items() for a in ("-e", f"{k}={v}")]
+    trace = "trace=%network,%process,memfd_create,prctl,openat"
+    script = (
+        "set -e; mkdir -p /tmp/w && tar -xf - -C /tmp/w; set +e; "
+        f"strace -f -qq -ttt -s 128 --seccomp-bpf -e {trace} python -I -B /tmp/w/runner.py /tmp/w; rc=$?; "
+        f"echo '{EVENTS_BEGIN}'; cat /tmp/w/events.jsonl 2>/dev/null; echo '{EVENTS_END}'; exit $rc"
+    )
+    cmd = ["docker", "run", "-i", "--rm", "--name", name, "--hostname", HOSTNAME,
+           "--network", "none", "--read-only", "--tmpfs", "/tmp:rw,exec,size=256m",
+           "--tmpfs", f"{SANDBOX_HOME}:rw,size=16m,uid=65534,gid=65534,mode=700",
+           "--cap-drop", "ALL", "--security-opt", "no-new-privileges", "--user", "65534:65534",
+           "--pids-limit", "256", "--memory", "1g", "--cpus", "2", *env_args, IMAGE, "sh", "-c", script]
     t0 = time.time()
-    timed_out, code, used_strace = False, None, True
+    timed_out, code, out, err = False, None, "", ""
     try:
-        r = subprocess.run(base + strace_cmd, capture_output=True, text=True, timeout=TIMEOUT)
-        code = r.returncode
-        if code not in (0, 2, 3) and "ptrace" in (r.stderr or "") and not (out / "events.jsonl").exists():
-            used_strace = False  # strace not permitted here; rerun plain
-            r = subprocess.run(base + py, capture_output=True, text=True, timeout=TIMEOUT)
-            code = r.returncode
-    except subprocess.TimeoutExpired:
+        r = subprocess.run(cmd, input=tar, capture_output=True, timeout=TIMEOUT)
+        code, out, err = r.returncode, r.stdout.decode("utf-8", "replace"), r.stderr.decode("utf-8", "replace")
+    except subprocess.TimeoutExpired as e:
         timed_out = True
+        out = (e.stdout or b"").decode("utf-8", "replace")
+        err = (e.stderr or b"").decode("utf-8", "replace")
         subprocess.run(["docker", "kill", name], capture_output=True)
     dur = time.time() - t0
 
-    events = _read_events(out)
-    strace_log = out / "strace.log"
-    if used_strace and strace_log.exists():
-        start = next((e.get("ts") for e in events if e["event"] == "sandbox.start"), None)
-        events += parse_strace(strace_log.read_text(errors="replace"), t0=start)
+    body = out.split(EVENTS_BEGIN, 1)[1].split(EVENTS_END, 1)[0] if EVENTS_BEGIN in out else ""
+    events = _parse_events(body)
+    start = next((e.get("ts") for e in events if e["event"] == "sandbox.start"), None)
+    events += parse_strace(err, t0=start, canaries=canaries)
     events.sort(key=lambda e: e.get("t", 0))
-    return SandboxResult("docker", True, _status(code, timed_out), code, round(dur, 2), events,
-                         strace=used_strace and strace_log.exists(),
-                         note=f"docker image {IMAGE}: --network none --read-only --cap-drop ALL --pids-limit 64 --memory 512m")
+    has_strace = any(LINE_RE.match(line.strip()) for line in err.splitlines())
+    note = (f"{IMAGE}: --network none --read-only --cap-drop ALL --no-new-privileges --user 65534 "
+            f"--pids-limit 256 --memory 1g; files via stdin tar (no mounts); strace ground truth")
+    if code not in (0, 2, 3) and not events:
+        note += f" | container error: {err.strip().splitlines()[-1][:200] if err.strip() else 'unknown'}"
+    return SandboxResult("docker", True, _status(code, timed_out), code, round(dur, 2), events, strace=has_strace,
+                         note=note, canaries=canaries)
 
 
-def _run_subprocess(work: Path, out: Path, modules: list[str]) -> SandboxResult:
-    home = work / "home_modelgate"
-    home.mkdir()
-    env = {"PATH": "/usr/bin:/bin", "HOME": str(home), "MG_SANDBOX": "1", "MG_DENY": "1",
-           "PYTHONDONTWRITEBYTECODE": "1", "HF_HUB_OFFLINE": "1", "TRANSFORMERS_OFFLINE": "1",
-           "TMPDIR": str(work), **CANARIES}
-    cmd = [sys.executable, "-I", "-B", str(work / "runner.py"), str(out / "events.jsonl"), str(work / "pkg"), PKG_NAME, *modules]
-    t0 = time.time()
-    timed_out, code = False, None
+def _run_subprocess(tar: bytes) -> SandboxResult:
+    canaries = make_canaries()
+    work = Path(tempfile.mkdtemp(prefix="modelgate_sbx_"))
     try:
-        r = subprocess.run(cmd, capture_output=True, text=True, timeout=TIMEOUT, env=env, cwd=str(work))
-        code = r.returncode
-    except subprocess.TimeoutExpired:
-        timed_out = True
-    dur = time.time() - t0
-    events = _read_events(out)
-    return SandboxResult("subprocess", False, _status(code, timed_out), code, round(dur, 2), events,
-                         note="NOT ISOLATED: Docker unavailable; ran in a plain subprocess with temp HOME, scrubbed env, "
-                              "and an audit hook that denies network/process operations. Audit hooks can be bypassed.")
+        with tarfile.open(fileobj=io.BytesIO(tar)) as tf:
+            tf.extractall(work / "w", filter="data")
+        home = work / "home_modelgate"
+        home.mkdir()
+        env = {"PATH": "/usr/bin:/bin", "HOME": str(home), "USER": "mlops", "MG_SANDBOX": "1", "MG_DENY": "1",
+               "CUDA_VISIBLE_DEVICES": "0", "PYTHONDONTWRITEBYTECODE": "1", "HF_HUB_OFFLINE": "1",
+               "TRANSFORMERS_OFFLINE": "1", "TMPDIR": str(work), **canaries}
+        cmd = [sys.executable, "-I", "-B", str(work / "w" / "runner.py"), str(work / "w")]
+        t0 = time.time()
+        timed_out, code = False, None
+        try:
+            code = subprocess.run(cmd, capture_output=True, timeout=TIMEOUT, env=env, cwd=str(work)).returncode
+        except subprocess.TimeoutExpired:
+            timed_out = True
+        dur = time.time() - t0
+        log = work / "w" / "events.jsonl"
+        events = _parse_events(log.read_text(errors="replace")) if log.exists() else []
+        return SandboxResult("subprocess", False, _status(code, timed_out), code, round(dur, 2), events,
+                             note="NOT ISOLATED (MODELGATE_ALLOW_UNISOLATED=1): plain subprocess with temp HOME, scrubbed env, "
+                                  "and an audit hook that denies network/process calls. Audit hooks can be bypassed.",
+                             canaries=canaries)
+    finally:
+        shutil.rmtree(work, ignore_errors=True)
