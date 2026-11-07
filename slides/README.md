@@ -4,7 +4,7 @@ Hackathon slide materials for ModelGate.
 
 | File | What it is |
 |---|---|
-| `SLIDES.md` | Speaker notes, timings, sources and judge Q&A for the 7-slide, 5-minute talk, with sources to verify |
+| `SLIDES.md` | Speaker notes, timings, sources and judge Q&A for the 8-slide, 5-minute talk, with sources to verify |
 | `images/dashboard_allow.png` | Dashboard, `fixtures/clean_model`: green ALLOW (1440x900 @2x, light theme) |
 | `images/dashboard_block.png` | Dashboard, `fixtures/sneaky_model`: red BLOCK with file:line reasons and the AI summary |
 | `images/dashboard_injection.png` | Dashboard, `fixtures/injection_model`: BLOCK, with a reason line saying the prompt injection has no effect |
@@ -13,7 +13,7 @@ Hackathon slide materials for ModelGate.
 | `images/terminal_import_hook.png` | Real output of `examples/demo_load.py fixtures/sneaky_model` (LLM off). Findings and the AI panel are trimmed, and the trims are labelled in the image |
 | `images/architecture.svg` / `.png` | Hand-written pipeline diagram; the LLM is drawn as a dashed side branch |
 | `images/eval.png` | Eval summary and table drawn from `../eval_results.json` |
-| `deck/index.html` | **The slideshow.** Open it in a browser: arrow keys or click to move, F for fullscreen. 7 slides, about 4:40. Slide 5 plays `docs/modelgate_demo.mp4` |
+| `deck/index.html` | **The slideshow.** Open it in a browser: arrow keys or click to move, F for fullscreen. 8 slides, about 4:50. Slide 6 plays `docs/modelgate_demo.mp4` |
 | `tools/` | Scripts that regenerate the images (`tools/build/` holds intermediate files) |
 
 ## Regenerate

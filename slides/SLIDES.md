@@ -1,33 +1,37 @@
 # ModelGate: 5-minute talk
 
 Open `slides/deck/index.html` in a browser, from inside the repo. Arrow keys move between slides, and F toggles fullscreen.
-There are 7 slides, about **4:40** in total. To make up time, trim slide 2 rather than the demo or the sandbox slide.
+There are 8 slides, about **4:50** in total. To make up time, trim slide 2 rather than the demo or the sandbox slide.
 
 | # | Slide | Time | Running |
 |---|---|---|---|
-| 1 | You load a model from Hugging Face | 0:40 | 0:40 |
-| 2 | The model ships its own Python | 0:30 | 1:10 |
-| 3 | One import: checked before it runs | 0:35 | 1:45 |
-| 4 | Three seconds in the trap | 0:55 | 2:40 |
-| 5 | Demo (34 s video) | 0:50 | 3:30 |
-| 6 | What we measured, what we can't see yet | 0:45 | 4:15 |
-| 7 | Close | 0:25 | 4:40 |
+| 1 | ModelGate (title) | 0:10 | 0:10 |
+| 2 | You load a model from Hugging Face | 0:40 | 0:50 |
+| 3 | The model ships its own Python | 0:30 | 1:20 |
+| 4 | One import: checked before it runs | 0:35 | 1:55 |
+| 5 | Three seconds in the trap | 0:55 | 2:50 |
+| 6 | Demo (34 s video) | 0:50 | 3:40 |
+| 7 | What we measured, what we can't see yet | 0:45 | 4:25 |
+| 8 | Close | 0:25 | 4:50 |
 
 ---
 
-## 1. You load a model from Hugging Face (0:40)
+## 1. ModelGate (0:10)
+"We're ModelGate. We run a model's code in a trap before it runs on your machine."
+
+## 2. You load a model from Hugging Face (0:40)
 "Picture this. Nine days ago you loaded a model from Hugging Face. One line of code. Your GPU started mining crypto for someone else, and a backdoor was left behind that stays even after the mining stops. The researchers' advice to anyone who loaded these models is to treat the machine as compromised. That was the Load/Mine campaign: 31 repos across seven accounts, more than 32,000 downloads, and Hugging Face's antivirus and partner scanners didn't flag them."
 
-## 2. The model ships its own Python (0:30)
+## 3. The model ships its own Python (0:30)
 "How does a model do that? Many popular models ship their own Python. The config tells transformers to import it, and with `trust_remote_code=True` it runs on your machine as soon as you load the model, with your keys, your tokens and your GPU. Scanners look at files. The attack is what the code does when it runs."
 
-## 3. One import (0:35)
+## 4. One import (0:35)
 "ModelGate is one import. Every load like this goes through four steps first. We fetch only the code, locked to one commit, and never the weights. We read it. We run it in a trap. Fixed rules decide, and an AI explains the result in plain English but can't change it."
 
-## 4. Three seconds in the trap (0:55)
+## 5. Three seconds in the trap (0:55)
 "This is the hard part. We don't just read the code; we run it in a trap. The trap is **sealed**: no network, a read-only disk, no privileges, and the files are piped in, so there's no path back to your machine. It's **baited**: it looks like a GPU server, with a decoy SSH key and fake tokens that are fresh for every scan. We **exercise** the code: we tell it a GPU exists, build a tiny version of the model, run it, save it and load the tokenizer, because real payloads wait for exactly those moments. And it's **watched**: the kernel logs every connection and every program started, and Python tells us the exact line. This red row is real: the connection only happened during the forward pass, on line 19. All of that takes about three seconds per repo. If anything hangs or crashes, or Docker isn't available, the load is blocked."
 
-## 5. Demo (0:50; the video is 34 s)
+## 6. Demo (0:50; the video is 34 s)
 Click play. While it runs:
 - "One import, and the load is refused before the code runs."
 - "This next one waits. It only fires inside `forward()`, and only on a GPU. The sandbox fakes a GPU and runs the model, and the kernel catches the connection and the shell."
@@ -35,10 +39,10 @@ Click play. While it runs:
 
 If the video won't play, run the same flow live: start `modelgate serve`, open http://127.0.0.1:8000 and click "deferred model".
 
-## 6. What we measured, what we can't see yet (0:45)
+## 7. What we measured, what we can't see yet (0:45)
 "We caught six out of six attack imitations, including the one that only fires on a GPU. On six popular real models we gave four Warns and two Blocks, and let none through without review. Both Blocks were mistakes, and the README explains them. What we can't see yet: payloads that wait hours or check the date, the fact that Docker shares the host kernel, and loaders other than transformers."
 
-## 7. Close (0:25)
+## 8. Close (0:25)
 "The code runs in our trap before it runs on your GPU. Next we're adding a stronger sandbox, more loaders, and a check on every new commit pushed to the Hub. Thank you."
 
 ---
