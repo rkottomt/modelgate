@@ -11,7 +11,7 @@
     <a class="wordmark" href="/">ModelGate</a>
     <form id="scan-form" class="scan" autocomplete="off">
       <label class="field grow">
-        <span class="label">Model repo</span>
+        <span class="label">Hugging Face repo</span>
         <input id="repo" name="repo" placeholder="org/model-name" spellcheck="false" required>
       </label>
       <label class="field">
@@ -25,79 +25,72 @@
   <div class="layout">
     <aside class="rail">
       <h3>Examples</h3>
-      <ul id="fixtures" class="plain-list"></ul>
+      <ul id="fixtures" class="plain-list examples"></ul>
       <h3>Recent scans</h3>
       <ul id="history" class="plain-list"><li class="muted">None yet</li></ul>
     </aside>
 
     <main id="main">
       <section id="intro" class="intro">
-        <h1>Check custom model code before it runs</h1>
-        <p>Loading a model with <code>trust_remote_code=True</code> runs Python from the repo on your machine.
-          ModelGate downloads that code (never the weights), reads it, runs it in a locked-down container, and tells you
-          whether it's safe to load.</p>
-        <dl class="verdict-key">
-          <div><dt class="t-allow">Allow</dt><dd>No risky behaviour found. Load it pinned to the scanned commit.</dd></div>
-          <div><dt class="t-warn">Warn</dt><dd>Something needs a human look, e.g. a network library or a reference to another repo.</dd></div>
-          <div><dt class="t-block">Block</dt><dd>The code tried something a model has no reason to do: opened a socket, read your keys, spawned a shell.</dd></div>
-        </dl>
-        <p class="muted">Verdicts come from fixed rules only. The AI write-up explains them and can't change them.
-          Press <kbd>/</kbd> to jump to the search box.</p>
+        <h1>Run model code before you trust it</h1>
+        <p>Loading a Hugging Face model with <code>trust_remote_code=True</code> runs Python from the repo on your
+          machine, before you call the model. On 29 October 2026, Pluto Security reported 31 repos across seven accounts,
+          with more than 32,000 downloads, that used exactly this to install a crypto miner and a backdoor. Hugging Face's
+          antivirus and partner scanners didn't flag them.</p>
+        <p>ModelGate runs that code first, in an offline container that looks like a GPU server with decoy keys, and
+          records everything it does: the kernel sees every connection and process, and Python names the line that
+          caused it. About three seconds per repo.</p>
+        <p class="try">Try <button type="button" class="linkish" data-example="deferred_model">deferred model</button>:
+          its payload only fires inside <code>forward()</code> on a GPU, so reading the code or just importing it
+          misses it.</p>
       </section>
 
       <section id="progress" class="progress hidden" aria-live="polite">
-        <div class="progress-row"><span id="progress-text">Scanning</span><span id="progress-time" class="num muted"></span></div>
-        <ol class="steps">
-          <li>Resolve the revision to a commit and download code files</li>
-          <li>Read the code for risky calls and hidden instructions</li>
-          <li>Run it in an offline container and record what it does</li>
-          <li>Apply the rules</li>
-        </ol>
+        <span id="progress-text"></span> <span id="progress-time" class="num muted"></span>
       </section>
 
       <section id="error" class="error hidden" role="alert"></section>
 
       <section id="result" class="hidden">
         <div id="verdict" class="verdict">
-          <div class="verdict-main">
-            <div id="verdict-word" class="verdict-word"></div>
-            <div id="verdict-line" class="verdict-line"></div>
-          </div>
-          <dl id="facts" class="facts"></dl>
+          <div id="verdict-word" class="verdict-word"></div>
+          <div id="verdict-line" class="verdict-line"></div>
+          <div id="verdict-meta" class="verdict-meta"></div>
         </div>
 
         <div id="isolation" class="notice hidden"></div>
 
-        <div id="next" class="next"></div>
+        <ol id="stages" class="stages" aria-label="How this repo was checked"></ol>
 
         <div class="cols">
           <div class="col-main">
             <div class="section-head">
-              <h2>Findings <span id="findings-count" class="num muted"></span></h2>
-              <div id="filters" class="filters" role="group" aria-label="Filter by severity"></div>
+              <h2>Observed in the sandbox</h2>
+              <button type="button" id="tl-toggle" class="linkish hidden"></button>
+            </div>
+            <p id="exercised" class="exercised"></p>
+            <ol id="timeline" class="timeline"></ol>
+
+            <div class="section-head spaced">
+              <h2>Found in the code <span id="findings-count" class="num muted"></span></h2>
+              <button type="button" id="sev-toggle" class="linkish hidden"></button>
             </div>
             <div id="findings"></div>
 
             <div id="refs-wrap" class="hidden">
-              <h2>Code pulled from other repos</h2>
-              <p class="muted small">Each referenced repo is scanned on its own; a block there blocks this model.</p>
+              <div class="section-head spaced"><h2>Code pulled from other repos</h2></div>
               <div id="refs"></div>
             </div>
           </div>
 
           <div class="col-side">
-            <div class="section-head">
+            <div id="next" class="next"></div>
+
+            <div class="section-head spaced">
               <h2>Plain-English summary</h2>
-              <span class="tag-advisory" title="Written by an LLM from the findings. It cannot change the verdict.">AI · advisory</span>
+              <span class="tag-advisory" title="Written by an LLM after the verdict was decided. It cannot change it.">AI · advisory</span>
             </div>
             <div id="explanation" class="explanation"></div>
-
-            <div class="section-head">
-              <h2>What the code did when run</h2>
-              <button type="button" id="tl-toggle" class="linkish hidden"></button>
-            </div>
-            <p id="sandbox-mode" class="muted small"></p>
-            <ol id="timeline" class="timeline"></ol>
 
             <details class="files">
               <summary>Files scanned <span id="files-count" class="num muted"></span></summary>

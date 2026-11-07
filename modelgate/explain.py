@@ -80,6 +80,15 @@ def _parse_json(text: str) -> dict:
     return json.loads(m.group(0))
 
 
+def _clip(text: str, n: int) -> str:
+    """Cut at a sentence boundary instead of mid-word."""
+    if len(text) <= n:
+        return text
+    cut = text[:n]
+    end = max(cut.rfind(". "), cut.rfind(".\n"))
+    return cut[:end + 1] if end > n // 2 else cut.rsplit(" ", 1)[0] + "…"
+
+
 def validate(raw: dict, report: dict) -> dict:
     """Keep only well-typed fields, and only findings that exist in our results."""
     known = {(f["rule_id"], f["file"], int(f["line"])) for f in report["findings"]}
@@ -101,7 +110,7 @@ def validate(raw: dict, report: dict) -> dict:
         "summary": str(raw.get("summary", ""))[:2000],
         "findings": out_findings,
         "attack_techniques": techniques[:12],
-        "recommended_action": str(raw.get("recommended_action", ""))[:500],
+        "recommended_action": _clip(str(raw.get("recommended_action", "")), 900),
         "dropped_findings": dropped,
     }
 

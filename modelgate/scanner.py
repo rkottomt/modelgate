@@ -56,6 +56,9 @@ def scan(target: str, revision: str | None = None, use_llm: bool = True, sandbox
     report: dict = {"target": target, "repo_key": key, "revision": revision, "sha": None, "code_hash": "",
                     "findings": [], "references": [], "explanation": None, "allowlisted": False}
 
+    timings: dict[str, float] = {}
+    report["timings"] = timings
+    t_stage = time.time()
     try:
         bundle = fetch(target, revision)
     except Exception as e:  # noqa: BLE001  (network errors, missing repo, bad revision...)
@@ -63,6 +66,7 @@ def scan(target: str, revision: str | None = None, use_llm: bool = True, sandbox
         report["scan_seconds"] = round(time.time() - t0, 2)
         return _save(report)
 
+    timings["fetch"] = round(time.time() - t_stage, 3)
     report.update(sha=bundle.sha, code_hash=bundle.code_hash, bundle=bundle.to_dict(),
                   modules_executed=bundle.local_modules)
 
@@ -74,9 +78,15 @@ def scan(target: str, revision: str | None = None, use_llm: bool = True, sandbox
         return _save(report)
 
     try:
+        t_stage = time.time()
         findings = static.scan(bundle)
+        timings["static"] = round(time.time() - t_stage, 3)
+        report["static_count"] = len(findings)
+        t_stage = time.time()
         sb = sandbox.run(bundle, force_mode=sandbox_mode)
+        timings["sandbox"] = round(time.time() - t_stage, 3)
         findings += policy.sandbox_findings(sb)
+        t_stage = time.time()
         report["sandbox"] = sb.to_dict()
 
         # Follow code references into other repos (cross-repo auto_map, custom_pipelines, custom_generate)
@@ -98,8 +108,11 @@ def scan(target: str, revision: str | None = None, use_llm: bool = True, sandbox
                 findings.append(Finding("MG062-ref-warn", "high", "config.json", 0, other,
                                         f"referenced repo `{other}` has warnings ({len(child['findings'])} findings)", source="reference"))
 
+        timings["references"] = round(time.time() - t_stage, 3)
+        t_stage = time.time()
         findings = policy.sort_findings(findings)
         verdict, reasons = policy.decide(findings)   # <- final. Computed before any LLM call.
+        timings["policy"] = round(time.time() - t_stage, 3)
         report.update(verdict=verdict, reasons=reasons, findings=[f.to_dict() for f in findings])
     except Exception as e:  # noqa: BLE001
         report["internal_error"] = traceback.format_exc(limit=3)[-800:]
