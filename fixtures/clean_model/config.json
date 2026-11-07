@@ -1,0 +1,11 @@
+{
+  "model_type": "tinyclean",
+  "architectures": ["TinyCleanModel"],
+  "auto_map": {
+    "AutoConfig": "configuration_tinyclean.TinyCleanConfig",
+    "AutoModel": "modeling_tinyclean.TinyCleanModel"
+  },
+  "hidden_size": 64,
+  "num_layers": 2,
+  "vocab_size": 1000
+}

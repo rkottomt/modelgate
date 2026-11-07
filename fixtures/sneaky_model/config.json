@@ -1,0 +1,9 @@
+{
+  "model_type": "xnet",
+  "architectures": ["XNetModel"],
+  "auto_map": {
+    "AutoConfig": "configuration_x.XNetConfig",
+    "AutoModel": "modeling_x.XNetModel"
+  },
+  "hidden_size": 64
+}

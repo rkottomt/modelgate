@@ -1,0 +1,23 @@
+[project]
+name = "modelgate"
+version = "0.1.0"
+description = "Drop-in safety gate for loading Hugging Face models with trust_remote_code"
+requires-python = ">=3.11"
+dependencies = ["huggingface_hub", "transformers", "typer", "rich", "fastapi", "uvicorn", "httpx", "python-dotenv"]
+
+[project.optional-dependencies]
+dev = ["pytest"]
+
+[project.scripts]
+modelgate = "modelgate.cli:app"
+
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools]
+packages = ["modelgate", "modelgate.web"]
+
+[tool.setuptools.package-data]
+"modelgate.web" = ["*.html"]
+"modelgate" = ["sandbox_runner.py"]

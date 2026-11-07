@@ -1,0 +1,9 @@
+{
+  "model_type": "hopnet",
+  "architectures": ["HopNetModel"],
+  "auto_map": {
+    "AutoConfig": "configuration_hop.HopNetConfig",
+    "AutoModel": "some-other-org/totally-legit-kernels--modeling_hop.HopNetModel"
+  },
+  "hidden_size": 64
+}
