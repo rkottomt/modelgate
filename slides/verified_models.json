@@ -1,0 +1,501 @@
+[
+  {
+    "repo": "microsoft/Phi-3-mini-4k-instruct",
+    "verdict": "WARN",
+    "secs": 3.43,
+    "sandbox": "docker/ok",
+    "files": 18,
+    "fetch_failed": false,
+    "malicious_behaviour": [],
+    "top": [
+      "SBX-EXERCISE-INCOMPLETE modeling_phi3.py:1001 1 deferred-trigger step(s) could not run (config/model/forward/tokenizer); behavior on those paths is unobserved",
+      "MG002-module-side-effect modeling_phi3.py:56 statement runs at import time (outside any def/class)"
+    ]
+  },
+  {
+    "repo": "microsoft/Phi-3-mini-128k-instruct",
+    "verdict": "WARN",
+    "secs": 4.46,
+    "sandbox": "docker/ok",
+    "files": 18,
+    "fetch_failed": false,
+    "malicious_behaviour": [],
+    "top": [
+      "SBX-EXERCISE-INCOMPLETE configuration_phi3.py:214 1 deferred-trigger step(s) could not run (config/model/forward/tokenizer); behavior on those paths is unobserved",
+      "MG002-module-side-effect modeling_phi3.py:56 statement runs at import time (outside any def/class)"
+    ]
+  },
+  {
+    "repo": "microsoft/Phi-3.5-mini-instruct",
+    "verdict": "WARN",
+    "secs": 3.04,
+    "sandbox": "docker/ok",
+    "files": 18,
+    "fetch_failed": false,
+    "malicious_behaviour": [],
+    "top": [
+      "SBX-EXERCISE-INCOMPLETE configuration_phi3.py:214 1 deferred-trigger step(s) could not run (config/model/forward/tokenizer); behavior on those paths is unobserved",
+      "MG002-module-side-effect modeling_phi3.py:56 statement runs at import time (outside any def/class)"
+    ]
+  },
+  {
+    "repo": "microsoft/Phi-3.5-MoE-instruct",
+    "verdict": "BLOCK",
+    "secs": 3.23,
+    "sandbox": "docker/crash",
+    "files": 18,
+    "fetch_failed": false,
+    "malicious_behaviour": [],
+    "top": [
+      "SBX-CRASH modeling_phimoe.py:49 importing the remote code crashed (fail closed)"
+    ]
+  },
+  {
+    "repo": "microsoft/Florence-2-large",
+    "verdict": "WARN",
+    "secs": 3.08,
+    "sandbox": "docker/missing_dependency",
+    "files": 15,
+    "fetch_failed": false,
+    "malicious_behaviour": [],
+    "top": [
+      "SBX-DYNEXEC processing_florence2.py:171 executed dynamically built code: compile dynamic code: 'ChannelDimension'",
+      "SBX-INCOMPLETE (runtime):0 dynamic analysis incomplete: a dependency is missing from the sandbox image"
+    ]
+  },
+  {
+    "repo": "microsoft/Florence-2-base",
+    "verdict": "WARN",
+    "secs": 3.07,
+    "sandbox": "docker/missing_dependency",
+    "files": 14,
+    "fetch_failed": false,
+    "malicious_behaviour": [],
+    "top": [
+      "SBX-DYNEXEC processing_florence2.py:171 executed dynamically built code: compile dynamic code: 'ChannelDimension'",
+      "SBX-INCOMPLETE (runtime):0 dynamic analysis incomplete: a dependency is missing from the sandbox image"
+    ]
+  },
+  {
+    "repo": "THUDM/chatglm3-6b",
+    "verdict": "BLOCK",
+    "secs": 3.28,
+    "sandbox": "docker/ok",
+    "files": 13,
+    "fetch_failed": false,
+    "malicious_behaviour": [],
+    "top": [
+      "MG100-combo-decode+dynexec quantization.py:28 decoding combined with dynamic execution [quantization.py:28, modeling_chatglm.py:1035]"
+    ]
+  },
+  {
+    "repo": "THUDM/chatglm2-6b",
+    "verdict": "WARN",
+    "secs": 3.37,
+    "sandbox": "docker/ok",
+    "files": 11,
+    "fetch_failed": false,
+    "malicious_behaviour": [],
+    "top": [
+      "MG014-native quantization.py:7 imports native-code loader `ctypes`",
+      "MG030-entropy quantization.py:27 long high-entropy string literal (7349 chars, entropy 5.96): possible obfuscated payload"
+    ]
+  },
+  {
+    "repo": "THUDM/glm-4-9b-chat",
+    "verdict": "WARN",
+    "secs": 2.91,
+    "sandbox": "docker/ok",
+    "files": 13,
+    "fetch_failed": false,
+    "malicious_behaviour": [],
+    "top": [
+      "MG024-decode tokenization_chatglm.py:31 `base64.b64decode()` base64-decodes data (common obfuscation step)",
+      "SBX-EXERCISE-INCOMPLETE modeling_chatglm.py:918 5 deferred-trigger step(s) could not run (config/model/forward/tokenizer); behavior on those paths is unobserved"
+    ]
+  },
+  {
+    "repo": "Qwen/Qwen-7B-Chat",
+    "verdict": "WARN",
+    "secs": 2.81,
+    "sandbox": "docker/ok",
+    "files": 21,
+    "fetch_failed": false,
+    "malicious_behaviour": [],
+    "top": [
+      "MG014-native cpp_kernels.py:1 imports native-code loader `torch.utils`",
+      "MG010-proc-import cpp_kernels.py:4 imports process library `subprocess`"
+    ]
+  },
+  {
+    "repo": "Qwen/Qwen-VL-Chat",
+    "verdict": "WARN",
+    "secs": 2.85,
+    "sandbox": "docker/missing_dependency",
+    "files": 11,
+    "fetch_failed": false,
+    "malicious_behaviour": [],
+    "top": [
+      "MG010-net-import tokenization_qwen.py:11 imports network library `requests` in model code",
+      "MG011-network tokenization_qwen.py:33 `requests.get()` makes an HTTP request at import time"
+    ]
+  },
+  {
+    "repo": "Qwen/Qwen-1_8B-Chat",
+    "verdict": "BLOCK",
+    "secs": 0.03,
+    "sandbox": "skipped/skipped",
+    "files": 0,
+    "fetch_failed": true,
+    "malicious_behaviour": [],
+    "top": [
+      "MG004-fetch-failed could not fetch Qwen/Qwen-1_8B-Chat@main: RepositoryNotFoundError"
+    ]
+  },
+  {
+    "repo": "deepseek-ai/DeepSeek-V3",
+    "verdict": "BLOCK",
+    "secs": 2.9,
+    "sandbox": "docker/crash",
+    "files": 20,
+    "fetch_failed": false,
+    "malicious_behaviour": [],
+    "top": [
+      "SBX-CRASH modeling_deepseek.py:56 importing the remote code crashed (fail closed)"
+    ]
+  },
+  {
+    "repo": "deepseek-ai/DeepSeek-V2-Lite",
+    "verdict": "BLOCK",
+    "secs": 2.84,
+    "sandbox": "docker/crash",
+    "files": 10,
+    "fetch_failed": false,
+    "malicious_behaviour": [],
+    "top": [
+      "SBX-CRASH modeling_deepseek.py:56 importing the remote code crashed (fail closed)"
+    ]
+  },
+  {
+    "repo": "deepseek-ai/DeepSeek-V2-Lite-Chat",
+    "verdict": "BLOCK",
+    "secs": 3.47,
+    "sandbox": "docker/crash",
+    "files": 10,
+    "fetch_failed": false,
+    "malicious_behaviour": [],
+    "top": [
+      "SBX-CRASH modeling_deepseek.py:56 importing the remote code crashed (fail closed)"
+    ]
+  },
+  {
+    "repo": "baichuan-inc/Baichuan2-7B-Chat",
+    "verdict": "WARN",
+    "secs": 3.53,
+    "sandbox": "docker/ok",
+    "files": 14,
+    "fetch_failed": false,
+    "malicious_behaviour": [],
+    "top": [
+      "MG002-module-side-effect modeling_baichuan.py:45 statement runs at import time (outside any def/class)",
+      "MG050-write-outside tokenization_baichuan.py:166 `shutil.copyfile()` copies files"
+    ]
+  },
+  {
+    "repo": "baichuan-inc/Baichuan2-13B-Chat",
+    "verdict": "WARN",
+    "secs": 3.41,
+    "sandbox": "docker/missing_dependency",
+    "files": 16,
+    "fetch_failed": false,
+    "malicious_behaviour": [],
+    "top": [
+      "SBX-INCOMPLETE (runtime):0 dynamic analysis incomplete: a dependency is missing from the sandbox image",
+      "MG002-module-side-effect modeling_baichuan.py:26 statement runs at import time (outside any def/class)"
+    ]
+  },
+  {
+    "repo": "internlm/internlm2-chat-7b",
+    "verdict": "WARN",
+    "secs": 3.86,
+    "sandbox": "docker/ok",
+    "files": 12,
+    "fetch_failed": false,
+    "malicious_behaviour": [],
+    "top": [
+      "SBX-EXERCISE-INCOMPLETE modeling_internlm2.py:965 4 deferred-trigger step(s) could not run (config/model/forward/tokenizer); behavior on those paths is unobserved",
+      "MG002-module-side-effect modeling_internlm2.py:100 statement runs at import time (outside any def/class)"
+    ]
+  },
+  {
+    "repo": "internlm/internlm2_5-7b-chat",
+    "verdict": "WARN",
+    "secs": 3.73,
+    "sandbox": "docker/ok",
+    "files": 12,
+    "fetch_failed": false,
+    "malicious_behaviour": [],
+    "top": [
+      "SBX-EXERCISE-INCOMPLETE modeling_internlm2.py:965 4 deferred-trigger step(s) could not run (config/model/forward/tokenizer); behavior on those paths is unobserved",
+      "MG002-module-side-effect modeling_internlm2.py:100 statement runs at import time (outside any def/class)"
+    ]
+  },
+  {
+    "repo": "OpenGVLab/InternVL2-8B",
+    "verdict": "WARN",
+    "secs": 3.38,
+    "sandbox": "docker/missing_dependency",
+    "files": 23,
+    "fetch_failed": false,
+    "malicious_behaviour": [],
+    "top": [
+      "SBX-DYNEXEC conversation.py:38 executed dynamically built code: compile dynamic code: 'def __create_fn__(__dataclass_type_name__, __dataclass_type_system_template__, _'",
+      "SBX-INCOMPLETE (runtime):0 dynamic analysis incomplete: a dependency is missing from the sandbox image"
+    ]
+  },
+  {
+    "repo": "OpenGVLab/InternVL2-2B",
+    "verdict": "WARN",
+    "secs": 3.47,
+    "sandbox": "docker/missing_dependency",
+    "files": 22,
+    "fetch_failed": false,
+    "malicious_behaviour": [],
+    "top": [
+      "SBX-DYNEXEC conversation.py:38 executed dynamically built code: compile dynamic code: 'def __create_fn__(__dataclass_type_name__, __dataclass_type_system_template__, _'",
+      "SBX-INCOMPLETE (runtime):0 dynamic analysis incomplete: a dependency is missing from the sandbox image"
+    ]
+  },
+  {
+    "repo": "openbmb/MiniCPM-V-2_6",
+    "verdict": "BLOCK",
+    "secs": 0.33,
+    "sandbox": "skipped/skipped",
+    "files": 0,
+    "fetch_failed": true,
+    "malicious_behaviour": [],
+    "top": [
+      "MG004-fetch-failed could not fetch openbmb/MiniCPM-V-2_6@main: GatedRepoError"
+    ]
+  },
+  {
+    "repo": "openbmb/MiniCPM-2B-sft-bf16",
+    "verdict": "BLOCK",
+    "secs": 3.08,
+    "sandbox": "docker/crash",
+    "files": 9,
+    "fetch_failed": false,
+    "malicious_behaviour": [],
+    "top": [
+      "SBX-CRASH modeling_minicpm.py:50 importing the remote code crashed (fail closed)"
+    ]
+  },
+  {
+    "repo": "nomic-ai/nomic-embed-text-v1.5",
+    "verdict": "WARN",
+    "secs": 3.1,
+    "sandbox": "skipped/skipped",
+    "files": 11,
+    "fetch_failed": false,
+    "malicious_behaviour": [],
+    "top": [
+      "MG060-cross-repo config.json:0 auto_map pulls code from ANOTHER repo `nomic-ai/nomic-bert-2048` (supply-chain hop; scanned recursively)",
+      "MG062-ref-warn config.json:0 referenced repo `nomic-ai/nomic-bert-2048` has warnings (6 findings)"
+    ]
+  },
+  {
+    "repo": "nomic-ai/nomic-embed-text-v1",
+    "verdict": "WARN",
+    "secs": 3.48,
+    "sandbox": "skipped/skipped",
+    "files": 11,
+    "fetch_failed": false,
+    "malicious_behaviour": [],
+    "top": [
+      "MG060-cross-repo config.json:0 auto_map pulls code from ANOTHER repo `nomic-ai/nomic-bert-2048` (supply-chain hop; scanned recursively)",
+      "MG062-ref-warn config.json:0 referenced repo `nomic-ai/nomic-bert-2048` has warnings (6 findings)"
+    ]
+  },
+  {
+    "repo": "jinaai/jina-embeddings-v3",
+    "verdict": "WARN",
+    "secs": 1.18,
+    "sandbox": "skipped/skipped",
+    "files": 10,
+    "fetch_failed": false,
+    "malicious_behaviour": [],
+    "top": [
+      "MG060-cross-repo config.json:0 auto_map pulls code from ANOTHER repo `jinaai/xlm-roberta-flash-implementation` (supply-chain hop; scanned recursively)"
+    ]
+  },
+  {
+    "repo": "jinaai/jina-embeddings-v2-base-en",
+    "verdict": "WARN",
+    "secs": 0.98,
+    "sandbox": "skipped/skipped",
+    "files": 14,
+    "fetch_failed": false,
+    "malicious_behaviour": [],
+    "top": [
+      "MG060-cross-repo config.json:0 auto_map pulls code from ANOTHER repo `jinaai/jina-bert-implementation` (supply-chain hop; scanned recursively)"
+    ]
+  },
+  {
+    "repo": "jinaai/jina-clip-v1",
+    "verdict": "WARN",
+    "secs": 0.73,
+    "sandbox": "skipped/skipped",
+    "files": 11,
+    "fetch_failed": false,
+    "malicious_behaviour": [],
+    "top": [
+      "MG060-cross-repo config.json:0 auto_map pulls code from ANOTHER repo `jinaai/jina-clip-implementation` (supply-chain hop; scanned recursively)",
+      "MG062-ref-warn config.json:0 referenced repo `jinaai/jina-clip-implementation` has warnings (10 findings)"
+    ]
+  },
+  {
+    "repo": "Alibaba-NLP/gte-large-en-v1.5",
+    "verdict": "WARN",
+    "secs": 0.64,
+    "sandbox": "skipped/skipped",
+    "files": 10,
+    "fetch_failed": false,
+    "malicious_behaviour": [],
+    "top": [
+      "MG060-cross-repo config.json:0 auto_map pulls code from ANOTHER repo `Alibaba-NLP/new-impl` (supply-chain hop; scanned recursively)"
+    ]
+  },
+  {
+    "repo": "Alibaba-NLP/gte-base-en-v1.5",
+    "verdict": "WARN",
+    "secs": 0.56,
+    "sandbox": "skipped/skipped",
+    "files": 10,
+    "fetch_failed": false,
+    "malicious_behaviour": [],
+    "top": [
+      "MG060-cross-repo config.json:0 auto_map pulls code from ANOTHER repo `Alibaba-NLP/new-impl` (supply-chain hop; scanned recursively)"
+    ]
+  },
+  {
+    "repo": "apple/OpenELM-270M",
+    "verdict": "WARN",
+    "secs": 3.09,
+    "sandbox": "docker/ok",
+    "files": 8,
+    "fetch_failed": false,
+    "malicious_behaviour": [],
+    "top": [
+      "SBX-EXERCISE-INCOMPLETE configuration_openelm.py:228 1 deferred-trigger step(s) could not run (config/model/forward/tokenizer); behavior on those paths is unobserved"
+    ]
+  },
+  {
+    "repo": "apple/OpenELM-1_1B",
+    "verdict": "WARN",
+    "secs": 3.13,
+    "sandbox": "docker/ok",
+    "files": 8,
+    "fetch_failed": false,
+    "malicious_behaviour": [],
+    "top": [
+      "SBX-EXERCISE-INCOMPLETE configuration_openelm.py:228 1 deferred-trigger step(s) could not run (config/model/forward/tokenizer); behavior on those paths is unobserved"
+    ]
+  },
+  {
+    "repo": "nvidia/NV-Embed-v2",
+    "verdict": "WARN",
+    "secs": 3.22,
+    "sandbox": "docker/missing_dependency",
+    "files": 15,
+    "fetch_failed": false,
+    "malicious_behaviour": [],
+    "top": [
+      "SBX-INCOMPLETE (runtime):0 dynamic analysis incomplete: a dependency is missing from the sandbox image",
+      "MG002-module-side-effect configuration_nvembed.py:90 statement runs at import time (outside any def/class)"
+    ]
+  },
+  {
+    "repo": "tiiuae/falcon-7b",
+    "verdict": "WARN",
+    "secs": 2.87,
+    "sandbox": "docker/ok",
+    "files": 10,
+    "fetch_failed": false,
+    "malicious_behaviour": [],
+    "top": [
+      "SBX-EXERCISE-INCOMPLETE modeling_falcon.py:740 6 deferred-trigger step(s) could not run (config/model/forward/tokenizer); behavior on those paths is unobserved"
+    ]
+  },
+  {
+    "repo": "tiiuae/falcon-7b-instruct",
+    "verdict": "WARN",
+    "secs": 3.36,
+    "sandbox": "docker/ok",
+    "files": 13,
+    "fetch_failed": false,
+    "malicious_behaviour": [],
+    "top": [
+      "SBX-EXERCISE-INCOMPLETE modeling_falcon.py:740 6 deferred-trigger step(s) could not run (config/model/forward/tokenizer); behavior on those paths is unobserved"
+    ]
+  },
+  {
+    "repo": "01-ai/Yi-6B",
+    "verdict": "ALLOW",
+    "secs": 0.67,
+    "sandbox": "skipped/skipped",
+    "files": 11,
+    "fetch_failed": false,
+    "malicious_behaviour": [],
+    "top": [
+      "no high, medium, or critical findings"
+    ]
+  },
+  {
+    "repo": "mosaicml/mpt-7b-instruct",
+    "verdict": "BLOCK",
+    "secs": 0.11,
+    "sandbox": "skipped/skipped",
+    "files": 0,
+    "fetch_failed": true,
+    "malicious_behaviour": [],
+    "top": [
+      "MG004-fetch-failed could not fetch mosaicml/mpt-7b-instruct@main: RepositoryNotFoundError"
+    ]
+  },
+  {
+    "repo": "Salesforce/codet5p-220m-bimodal",
+    "verdict": "WARN",
+    "secs": 3.08,
+    "sandbox": "docker/ok",
+    "files": 11,
+    "fetch_failed": false,
+    "malicious_behaviour": [],
+    "top": [
+      "SBX-EXERCISE-INCOMPLETE (runtime):0 1 deferred-trigger step(s) could not run (config/model/forward/tokenizer); behavior on those paths is unobserved"
+    ]
+  },
+  {
+    "repo": "moonshotai/Kimi-K2-Instruct",
+    "verdict": "BLOCK",
+    "secs": 3.26,
+    "sandbox": "docker/crash",
+    "files": 20,
+    "fetch_failed": false,
+    "malicious_behaviour": [],
+    "top": [
+      "SBX-CRASH modeling_deepseek.py:56 importing the remote code crashed (fail closed)"
+    ]
+  },
+  {
+    "repo": "MiniMaxAI/MiniMax-Text-01",
+    "verdict": "BLOCK",
+    "secs": 3.98,
+    "sandbox": "docker/crash",
+    "files": 19,
+    "fetch_failed": false,
+    "malicious_behaviour": [],
+    "top": [
+      "SBX-CRASH modeling_minimax_text_01.py:33 importing the remote code crashed (fail closed)"
+    ]
+  }
+]

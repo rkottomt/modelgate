@@ -135,15 +135,15 @@
     </div>
   </section>
 
-  <!-- 2 · why it got through (0:35) -->
+  <!-- 2b · who this affects (0:30) -->
   <section class="slide">
-    <h2>The model ships its own Python, and it runs on load.</h2>
-    <div class="flow">
-      <div class="box"><div class="n">config.json</div><div class="t mono-t">"auto_map": { "AutoModel": "modeling_x.Model" }</div><div class="d">tells transformers to import the repo's code</div></div>
-      <div class="arrow">→</div>
-      <div class="box"><div class="n">modeling_x.py</div><div class="t">runs on your machine</div><div class="d">with your keys, tokens, GPU and network, before you call the model</div></div>
+    <h2>Millions of people run open models on their own machines.</h2>
+    <div class="nums">
+      <div class="num"><div class="v">18M+</div><div class="l">people use Hugging Face to share and download over 3 million models <span class="when">NVIDIA, Sep 2026</span></div></div>
+      <div class="num"><div class="v">8.9M</div><div class="l">developers run open models locally with Ollama, used by 85% of the Fortune 500 <span class="when">Ollama, Jul 2026</span></div></div>
+      <div class="num"><div class="v">36,697</div><div class="l">Hugging Face models need <code>trust_remote_code</code> to load, so they run their own code <span class="when">arXiv 2601.14163, Jan 2026</span></div></div>
     </div>
-    <p class="note" style="margin-top:50px">Scanners look at files. The attack is what the code does when it runs.</p>
+    <p class="note" style="margin-top:50px">Every one of those loads runs on someone's own hardware, with their own keys.</p>
   </section>
 
   <!-- 3 · the fix (0:40) -->
@@ -178,26 +178,17 @@
     <video id="demo" src="../../docs/modelgate_demo.mp4" poster="poster.jpg" controls preload="metadata" playsinline></video>
   </section>
 
-  <!-- 6 · results and limits (0:40) -->
+  <!-- 6 · already verified (0:40) -->
   <section class="slide">
-    <h2>What we measured. What we can't see yet.</h2>
-    <div class="twocol">
-      <div>
-        <div class="colhead">Measured</div>
-        <ul class="plain">
-          <li>6 of 6 attack imitations blocked, including one that only fires on a GPU</li>
-          <li>6 popular real models: 4 Warn, 2 Block, 0 let through unreviewed</li>
-          <li>About 3 seconds per scan</li>
-        </ul>
-      </div>
-      <div>
-        <div class="colhead">Not yet</div>
-        <ul class="plain">
-          <li>Payloads that wait hours or check the date</li>
-          <li>Docker shares the host kernel; production needs gVisor</li>
-          <li>Only the transformers loader; weight files are other scanners' job</li>
-        </ul>
-      </div>
+    <h2>Already checked: 37 popular open-source models.</h2>
+    <div class="nums" style="margin-bottom:50px">
+      <div class="num"><div class="v">37</div><div class="l">of the most-used custom-code models: Phi, Qwen, DeepSeek, GLM, InternVL, Jina, Nomic and more</div></div>
+      <div class="num"><div class="v">107 s</div><div class="l">to check all 37, about 2.9 seconds each, with 29 run inside the trap</div></div>
+      <div class="num"><div class="v">0</div><div class="l">tried to connect out, start a program or touch keys</div></div>
+    </div>
+    <div class="rows tight">
+      <div><span class="k">Plus</span><span class="d">6 of 6 attack imitations blocked, including one that only fires on a GPU.</span></div>
+      <div><span class="k">Fail closed</span><span class="d">7 models crashed on the current transformers version. We can't watch them run, so we don't let them load.</span></div>
     </div>
   </section>
 
@@ -205,7 +196,7 @@
   <section class="slide">
     <div class="rule"></div>
     <h2 style="margin-bottom:34px">The code runs in our trap before it runs on your GPU.</h2>
-    <p class="lead">Next: a stronger sandbox (gVisor), more loaders, and a check that runs on every new commit on the Hub.</p>
+    <p class="lead">Next: scan every new commit on the Hub, so a model is checked before anyone downloads it.</p>
     <p class="small" style="margin-top:60px">github.com/rkottomt/modelgate</p>
   </section>
 
