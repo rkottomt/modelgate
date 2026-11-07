@@ -9,7 +9,7 @@ https://drive.google.com/file/d/15GArDvuaBnmFyh9qrAGCWyC_mAGkBvph/view?usp=shari
 | 1 | ModelGate (title) | 0:10 | 0:10 |
 | 2 | Why we built ModelGate | 0:40 | 0:50 |
 | 3 | Millions run open models on their own machines | 0:25 | 1:15 |
-| 4 | One import: checked before it runs | 0:25 | 1:40 |
+| 4 | One import: checked before it runs | 0:30 | 1:45 |
 | 5 | Three seconds in the trap | 0:45 | 2:25 |
 | 6 | What makes a model unsafe | 0:40 | 3:05 |
 | 7 | Demo (27 s video) | 0:45 | 3:50 |
@@ -27,8 +27,9 @@ https://drive.google.com/file/d/15GArDvuaBnmFyh9qrAGCWyC_mAGkBvph/view?usp=shari
 ## 3. Millions run open models on their own machines (0:25)
 "This isn't a niche problem. More than 18 million people use Hugging Face, which hosts over 3 million models. Ollama alone says 8.9 million developers run open models locally. And about 37,000 models on Hugging Face need `trust_remote_code` to load, which means they run their own code. Every one of those loads runs on someone's own hardware, with their own keys."
 
-## 4. One import (0:25)
-"ModelGate is one import. Every load like this goes through four steps first. We fetch only the code, locked to one commit, and never the weights. We read it. We run it in a trap. Fixed rules decide, and an AI explains the result in plain English but can't change it."
+## 4. One import (0:30)
+"ModelGate is one import. Every load like this goes through four steps first. We fetch only the code, locked to one commit, and never the weights. We read it. We run it in a trap. Fixed rules decide, and an AI explains the result in plain English but can't change it.
+We skip the weights on purpose. Weight files are already covered by existing scanners, and modern safetensors can't contain code. The gap nobody covered is the Python that ships next to the weights, and that's how the October campaign got through."
 
 ## 5. Three seconds in the trap (0:45)
 "This is the hard part. We don't just read the code; we run it in a trap. The trap is **sealed**: no network, a read-only disk, no privileges, and the files are piped in, so there's no path back to your machine. It's **baited**: it looks like a GPU server, with a decoy SSH key and fake tokens that are fresh for every scan. We **exercise** the code: we tell it a GPU exists, build a tiny version of the model, run it, save it and load the tokenizer, because real payloads wait for exactly those moments. And it's **watched**: the kernel logs every connection and every program started, and Python tells us the exact line. This red row is real: the connection only happened during the forward pass, on line 19. All of that takes about three seconds per repo. If anything hangs or crashes, or Docker isn't available, the load is blocked."
@@ -66,6 +67,8 @@ The 56-second video on Drive also shows the sandbox catching payloads that only 
 - Hugging Face has disabled some of the repos but not all of them, so don't say they were all taken down.
 
 ## Likely judge questions
+- **"Some malware waits a long time. If you only watch for 3 seconds, do you miss it?"** "The three-second run isn't our only check. We also read every line before anything runs. A payload that waits an hour still has to contain the code that opens the connection or starts the miner, and we flag that code whether or not it fires. Network access plus starting programs, or decoding hidden data and then running it, is blocked outright without running at all. Waiting hides *when* malware strikes, not *what* it contains. The remaining gap is a payload that is both delayed and well disguised. Our next step there is to fake the clock so time-delayed code fires immediately, and to run longer background checks."
+- **"What if the malware is in the weights?"** "That's real, but it's a different attack path. It hides in old pickle files (`.bin`, `.pt`) that can run code when loaded. Existing scanners such as picklescan, ModelScan, Protect AI and JFrog were built for exactly that, safetensors files are pure data and can't run code, and recent PyTorch loads with `weights_only=True` by default. We cover the gap they don't: the Python code next to the weights. A simple next step is to flag repos that only ship pickle weights, or add a pickle scanner as one more stage." (Don't claim ModelGate checks weights today. It doesn't, and the README says so.)
 - **"Can malware detect the sandbox and stay quiet?"** "Partly. The fake GPU, the real-looking host and the decoy keys defeat the usual checks. Code that probes the environment is flagged on its own, and payloads that wait hours are a limit we list."
 - **"Why have an AI at all?"** "Only to explain. The verdict is computed before the AI runs, its output is validated, and nothing it says changes the result."
 - **"What if the repo changes after the scan?"** "The scan is pinned to a commit, the load is forced to that same commit, and the cached code is re-hashed before it's imported. Approvals are signed and tied to the commit and code hash."
