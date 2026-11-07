@@ -15,13 +15,13 @@ BASE = "http://127.0.0.1:8000"
 OUT = Path(sys.argv[1])
 WORK = OUT.parent / "wframes"
 W, H = 1440, 810
-BAD, GOOD = "THUDM/chatglm3-6b", "Qwen/Qwen2.5-0.5B-Instruct"
+GOOD = "Qwen/Qwen2.5-0.5B-Instruct"
 GOAL = ("Summarise sales.csv by region and write report.json to the workspace. "
         "It doesn't need the internet, other programs, or any credentials.")
 
 # warm the AI summaries (cached per commit + code hash) so the scan pages don't sit on "Writing summary"
 import os
-for r in (() if os.environ.get("NOWARM") else (BAD, GOOD)):
+for r in ():
     rep = json.load(urllib.request.urlopen(f"{BASE}/api/scan?repo={r}", timeout=300))
     urllib.request.urlopen(f"{BASE}/api/explain?token={rep['token']}", timeout=300).read()
     print("warmed", r, rep["verdict"], flush=True)
@@ -48,7 +48,7 @@ cur_pos = [720, 420]
 
 def overlay(page):
     page.evaluate(OVERLAY)
-    page.evaluate("p => { const c = document.getElementById('mg-cur'); c.style.transition = 'none'; c.style.left = p[0]+'px'; c.style.top = p[1]+'px'; c.offsetHeight; c.style.transition = 'left .55s cubic-bezier(.3,.7,.3,1), top .55s cubic-bezier(.3,.7,.3,1), transform .12s'; }", cur_pos)
+    page.evaluate("p => { const c = document.getElementById('mg-cur'); if (!c) return; c.style.transition = 'none'; c.style.left = p[0]+'px'; c.style.top = p[1]+'px'; c.offsetHeight; c.style.transition = 'left .55s cubic-bezier(.3,.7,.3,1), top .55s cubic-bezier(.3,.7,.3,1), transform .12s'; }", cur_pos)
 
 
 def caption(page, text, accent="#b3261e"):
@@ -107,16 +107,36 @@ body{margin:0;background:#f6f5f1;color:#1c1d1f;height:100vh;display:flex;flex-di
 h1{font-size:54px;margin:0 0 18px;font-weight:700}.rule{width:64px;height:5px;background:#b3261e;margin-bottom:26px}
 p{font-size:24px;line-height:1.5;color:#4a4d52;margin:0}
 </style></head><body><div class="rule"></div><h1>ModelGate</h1>
-<p>Scan the model before its code runs.</p><p>Give the agent only what its job needs.</p></body></html>"""
+<p>Run the model's code in a trap before it runs on your machine.</p><p>One import. About three seconds.</p></body></html>"""
+
+TERMINAL = """<!doctype html><html><head><meta charset="utf-8"><style>
+body{margin:0;background:#f6f5f1;font:16px/1.55 ui-monospace,'SF Mono',Menlo,monospace;color:#1c1d1f;height:100vh;display:flex;flex-direction:column;justify-content:center;padding:0 90px;box-sizing:border-box}
+.lbl{font:600 13px system-ui,-apple-system,sans-serif;color:#74777d;margin:0 0 6px}
+.ed{background:#fff;border:1px solid #dcd9d1;border-radius:3px;padding:16px 20px;margin-bottom:22px;white-space:pre}
+.k{color:#1d4f91}.s{color:#1e6b3a}.c{color:#74777d}.hl{background:#fde9a8}
+.term{background:#1b1c1e;color:#e7e5e0;border-radius:3px;padding:16px 20px;min-height:190px;white-space:pre-wrap}
+.p{color:#7cc794}.blk{background:#b3261e;color:#fff;font-weight:700;padding:0 6px}.dim{color:#8f9196}
+</style></head><body>
+<p class="lbl">load_model.py</p>
+<div class="ed"><span class="hl"><span class="k">import</span> modelgate.auto</span>   <span class="c"># the only line you add</span>
+<span class="k">from</span> transformers <span class="k">import</span> AutoModel
+
+model = AutoModel.from_pretrained(<span class="s">"fixtures/sneaky_model"</span>, trust_remote_code=<span class="k">True</span>)</div>
+<p class="lbl">Terminal</p>
+<div class="term" id="term"><span class="p">$ </span><span id="cmd"></span></div>
+</body></html>"""
+BLOCKED_TEXT = ("ModelGate BLOCKED fixtures/sneaky_model: modeling_x.py line 3 attempts socket.connect to "
+                "203.0.113.5:4444; modeling_x.py line 7 reads decoy ~/.ssh/id_rsa; modeling_x.py line 8: touched "
+                "canary credential HF_TOKEN; modeling_x.py line 9 spawns /bin/sh.")
+
 
 frames = []
 with sync_playwright() as p:
     browser = p.chromium.launch()
     ctx = browser.new_context(viewport={"width": W, "height": H}, device_scale_factor=2, color_scheme="light")
     page = ctx.new_page()
-    page.goto(BASE + "/")
-    page.wait_for_selector("#fixtures button")
-    page.wait_for_timeout(400)
+    page.goto("about:blank")
+    page.set_content(TERMINAL)
 
     cdp = ctx.new_cdp_session(page)
 
@@ -134,54 +154,49 @@ with sync_playwright() as p:
         page.wait_for_selector("#result:not(.hidden)", timeout=180000)
         page.wait_for_selector("#progress.hidden", state="attached", timeout=180000)
 
-    # 1. a model from Hugging Face -> blocked
-    caption(page, "You found a chat model on Hugging Face. Scan it before you load it.")
-    page.wait_for_timeout(1400)
-    type_into(page, "#repo", BAD)
-    page.wait_for_timeout(300)
-    click(page, "#go")
-    trimmed_wait(wait_scan, head=1.2, tail=0.2)
-    caption(page, "Blocked. Its code decodes a compressed blob and runs it as native code, which can't be checked. It won't load.")
-    page.wait_for_timeout(4600)
+    # 1. terminal: one import, load refused
+    caption(page, "Add one import. Every trust_remote_code load is checked first.")
+    page.evaluate("() => { const c = document.getElementById('mg-cur'); if (c) c.style.display = 'none'; }")
+    page.wait_for_timeout(1500)
+    for ch in "python load_model.py":
+        page.evaluate("c => document.getElementById('cmd').textContent += c", ch)
+        page.wait_for_timeout(40)
+    page.wait_for_timeout(500)
+    page.evaluate("""() => { const d = document.createElement('div'); d.className = 'dim'; d.textContent = 'scanning remote code in the sandbox…'; document.getElementById('term').appendChild(d); }""")
+    page.wait_for_timeout(900)
+    page.evaluate("""t => { const term = document.getElementById('term');
+        const line = document.createElement('div'); line.style.marginTop = '8px';
+        const b = document.createElement('span'); b.className = 'blk'; b.textContent = 'BLOCKED';
+        line.appendChild(b); line.appendChild(document.createTextNode(' ' + t)); term.appendChild(line);
+        const r = document.createElement('div'); r.className = 'dim'; r.textContent = "ModelGateBlocked raised. The model's code never ran on this machine."; term.appendChild(r); }""", BLOCKED_TEXT)
+    caption(page, "Refused before the model's code runs: a reverse shell, a key read, a token grab.")
+    page.wait_for_timeout(4200)
 
-    # 2. a different model -> allowed
-    caption(page, "So pick a different model.", "#1e6b3a")
+    # 2. dashboard: a payload that waits for a GPU
+    page.goto(BASE + "/")
+    page.wait_for_selector("#fixtures button")
+    caption(page, "Some payloads wait. This one only fires inside forward(), and only on a GPU.")
+    page.wait_for_timeout(1600)
+    click(page, '[data-example="deferred_model"]')
+    trimmed_wait(wait_scan, head=1.0, tail=0.2)
+    caption(page, "Blocked. Reading the code or just importing it would have missed this.")
+    page.wait_for_timeout(3600)
+    caption(page, "The sandbox fakes a GPU, builds the model and runs it. The kernel saw the connection and the shell.")
+    scroll_to(page, ".col-main .section-head", 80)
+    page.wait_for_timeout(5200)
+
+    # 3. a real model: allowed, pinned
+    scroll_to(page, "body", 0)
+    page.wait_for_timeout(500)
+    caption(page, "A real model from Hugging Face with no hidden code: allowed.", "#1e6b3a")
     type_into(page, "#repo", GOOD)
     page.wait_for_timeout(300)
     click(page, "#go")
     trimmed_wait(wait_scan, head=0.8, tail=0.2)
-    caption(page, "Allowed. Qwen2.5 has no custom code, and the load is pinned to the exact commit that was scanned.", "#1e6b3a")
+    caption(page, "Allowed, and pinned to the exact commit that was checked. About three seconds per repo.", "#1e6b3a")
     page.wait_for_timeout(4200)
 
-    # 3. the agent that will use it
-    click(page, 'nav.nav a[href="/agents"]')
-    page.wait_for_selector("#agents button")
-    caption(page, "Now the agent that will use it. Say what its job is.", "#1d4f91")
-    page.wait_for_timeout(500)
-    click(page, '#agents button:has-text("data cleaner")')
-    page.wait_for_timeout(400)
-    type_into(page, "#goal", GOAL, delay=14)
-    page.wait_for_timeout(400)
-    click(page, "#propose")
-    trimmed_wait(lambda: page.wait_for_selector("#step2:not(.hidden)", timeout=180000), head=1.6, tail=0.2)
-    caption(page, "An AI drafts guardrails from a fixed list, with its reasons. You tick the ones you want.", "#1d4f91")
-    page.wait_for_timeout(1200)
-    scroll_to(page, "#step2", 70)
-    page.wait_for_timeout(3000)
-    scroll_to(page, "#run", 520)
-    page.wait_for_timeout(900)
-
-    # 4. approve and run
-    caption(page, "Approve, and the agent runs in the offline sandbox. Every connection, file write and program start is checked.", "#1d4f91")
-    click(page, "#run")
-    trimmed_wait(lambda: page.wait_for_selector("#step3:not(.hidden)", timeout=120000), head=0.5, tail=0.1)
-    page.wait_for_timeout(700)
-    scroll_to(page, "#step3", 60)
-    page.wait_for_timeout(1000)
-    caption(page, "It stayed within its guardrails. The workflow can start.", "#1e6b3a")
-    page.wait_for_timeout(3600)
-
-    # 5. end card
+    # 4. end card
     page.goto("about:blank")
     page.set_content(END)
     page.wait_for_timeout(2600)

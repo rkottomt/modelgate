@@ -81,6 +81,23 @@
   .flow .risk { display: inline-block; margin-top: 26px; font: 700 20px var(--mono); text-transform: uppercase; letter-spacing: 1px; color: #fff; background: var(--block); padding: 5px 11px; border-radius: 3px; }
   .flow .arrow { align-self: center; font-size: 60px; color: var(--muted); }
 
+
+  .consequences li { font-size: 38px; font-weight: 600; padding: 18px 0; }
+  .flow .t.mono-t { font: 600 27px/1.35 var(--mono); }
+  .bands { display: grid; grid-template-columns: repeat(4, 1fr); border-top: 2px solid var(--ink); }
+  .band { padding: 22px 28px 0 0; }
+  .band .bn { font-size: 36px; font-weight: 700; margin-bottom: 12px; }
+  .band ul { list-style: none; padding: 0; margin: 0; }
+  .band li { font-size: 24px; line-height: 1.35; color: var(--ink2); padding: 5px 0; }
+  .evrow { margin-top: 44px; display: flex; align-items: baseline; gap: 22px; font: 26px var(--mono); background: #fff; border: 1px solid var(--line); border-left: 6px solid var(--block); padding: 16px 22px; border-radius: 3px; }
+  .evrow .t { color: var(--muted); } .evrow .w { color: var(--block); font-weight: 700; }
+  .evrow .k2, .evrow .p2 { font: 700 16px var(--mono); text-transform: uppercase; padding: 2px 8px; border-radius: 3px; border: 1px solid var(--ink); }
+  .evrow .k2 { background: var(--ink); color: var(--paper); }
+  .evrow .f { color: var(--ink2); font-size: 22px; } .evrow .ph2 { color: var(--block); font: 600 20px var(--sans); }
+  .twocol { display: grid; grid-template-columns: 1fr 1fr; gap: 70px; }
+  .colhead { font: 700 20px var(--mono); text-transform: uppercase; letter-spacing: 1px; color: var(--muted); margin-bottom: 12px; }
+  .twocol ul.plain li { font-size: 29px; }
+
   /* video */
   .slide.video { padding: 54px 140px 60px; justify-content: flex-start; }
   .slide.video h2 { margin-bottom: 26px; font-size: 44px; }
@@ -95,97 +112,91 @@
 <body>
 <div id="stage">
 
-  <!-- 1 · title (0:10) -->
+  <!-- 1 · the hook (0:40) -->
   <section class="slide">
-    <div class="rule"></div>
-    <h1>ModelGate</h1>
-    <p class="lead" style="margin-top:28px">Safety checks for open-source models, and for the agents you build on them.</p>
-    <p class="small" style="margin-top:80px">github.com/rkottomt/modelgate</p>
+    <div class="tag bad">29 October 2026</div>
+    <h2>You load a model from Hugging Face.</h2>
+    <div class="codeblock" style="margin-bottom:34px">model = AutoModel.from_pretrained(<span class="s">"…"</span>, trust_remote_code=<span class="k">True</span>)</div>
+    <ul class="plain consequences">
+      <li>Your GPU starts mining crypto for someone else.</li>
+      <li>A backdoor stays after the mining stops.</li>
+      <li>The advice to victims: treat the machine as compromised.</li>
+    </ul>
+    <p class="small" style="margin-top:34px">31 repos · 7 accounts · 32,000+ downloads · not flagged by Hugging Face's antivirus or its partner scanners. Source: Pluto Security, "Load/Mine".</p>
   </section>
 
-  <!-- 2 · the workflow (0:25) -->
+  <!-- 2 · why it got through (0:35) -->
   <section class="slide">
-    <h2>What every AI team does</h2>
+    <h2>The model ships its own Python, and it runs on load.</h2>
     <div class="flow">
-      <div class="box"><div class="n">Step 1</div><div class="t">Download an open-source model</div><div class="d">from Hugging Face</div><div class="risk">Problem 1</div></div>
+      <div class="box"><div class="n">config.json</div><div class="t mono-t">"auto_map": { "AutoModel": "modeling_x.Model" }</div><div class="d">tells transformers to import the repo's code</div></div>
       <div class="arrow">→</div>
-      <div class="box"><div class="n">Step 2</div><div class="t">Build an agent on it</div><div class="d">give it tools, files and a goal</div><div class="risk">Problem 2</div></div>
+      <div class="box"><div class="n">modeling_x.py</div><div class="t">runs on your machine</div><div class="d">with your keys, tokens, GPU and network, before you call the model</div></div>
     </div>
-    <p class="lead" style="margin-top:56px">Both steps hand control of your machine to code you didn't write.</p>
+    <p class="note" style="margin-top:50px">Scanners look at files. The attack is what the code does when it runs.</p>
   </section>
 
-  <!-- 3 · problem 1 (0:50) -->
+  <!-- 3 · the fix (0:40) -->
   <section class="slide">
-    <div class="track"><span class="cur"><b>1</b>Download a model</span><span class=""><b>2</b>Build an agent</span><span class=""><b>3</b>Demo</span></div>
-    <div class="tag bad">Problem 1</div>
-    <h2>The model you download runs its own code on your machine.</h2>
-    <div class="stat">
-      <div class="v">32,000</div>
-      <div class="l">downloads of 31 Hugging Face models that planted crypto miners and reverse shells on the machines that loaded them. They passed three existing scanners. <span class="when">Oct 2026</span></div>
-    </div>
-    <div class="rows tight">
-      <div><span class="k">How</span><span class="d">Many popular models ship their own Python, and it runs the moment you load them.</span></div>
-      <div><span class="k">What you lose</span><span class="d">Your GPUs mine for someone else. A stranger gets a shell, your SSH keys and your tokens.</span></div>
-    </div>
-  </section>
-
-  <!-- 4 · fix 1 (0:40) -->
-  <section class="slide">
-    <div class="track"><span class="cur"><b>1</b>Download a model</span><span class=""><b>2</b>Build an agent</span><span class=""><b>3</b>Demo</span></div>
-    <div class="tag good">Fix 1</div>
-    <h2>ModelGate checks the code before it ever runs.</h2>
+    <div class="tag good">ModelGate</div>
+    <h2>One import. The code is checked before it runs.</h2>
     <div class="codeblock" style="margin-bottom:36px"><span class="hl"><span class="k">import</span> modelgate.auto</span></div>
     <div class="steps">
-      <div class="step"><div class="n">01</div><div class="t">Fetch the code</div><div class="d">Locked to one commit. Never the weights.</div></div>
-      <div class="step"><div class="n">02</div><div class="t">Read it</div><div class="d">Risky calls, hidden blobs, notes aimed at AI reviewers.</div></div>
-      <div class="step"><div class="n">03</div><div class="t">Run it offline</div><div class="d">Sealed container with decoy keys. Every system call recorded.</div></div>
-      <div class="step"><div class="n">04</div><div class="t">Block or allow</div><div class="d">Starting a miner, opening a shell or touching keys means <span class="block">Block</span>.</div></div>
+      <div class="step"><div class="n">01</div><div class="t">Fetch</div><div class="d">The code only, locked to one commit. Never the weights.</div></div>
+      <div class="step"><div class="n">02</div><div class="t">Read</div><div class="d">Risky calls, decoded blobs, notes aimed at AI reviewers.</div></div>
+      <div class="step"><div class="n">03</div><div class="t">Run it in a trap</div><div class="d">A sealed container, watched at the kernel level.</div></div>
+      <div class="step"><div class="n">04</div><div class="t">Decide</div><div class="d">Fixed rules. An AI explains the result but can't change it.</div></div>
     </div>
   </section>
 
-  <!-- 5 · problem 2 (0:50) -->
+  <!-- 4 · the sandbox (0:55) -->
   <section class="slide">
-    <div class="track"><span class=""><b>1</b>Download a model</span><span class="cur"><b>2</b>Build an agent</span><span class=""><b>3</b>Demo</span></div>
-    <div class="tag bad">Problem 2</div>
-    <h2>The agent you build escapes its sandbox.</h2>
-    <div class="stat">
-      <div class="v">13 hrs</div>
-      <div class="l">for AI agents under test to slip out through their one allowed network path and take admin control of Hugging Face's servers. <span class="when">Jul 2026</span></div>
+    <h2>Three seconds in the trap</h2>
+    <div class="bands">
+      <div class="band"><div class="bn">Sealed</div><ul><li>No network</li><li>Read-only disk, no privileges</li><li>Files piped in, nothing mounted</li></ul></div>
+      <div class="band"><div class="bn">Baited</div><ul><li>Looks like a GPU server</li><li>Decoy SSH key</li><li>Fresh fake tokens every scan</li></ul></div>
+      <div class="band"><div class="bn">Exercised</div><ul><li>Told a GPU exists</li><li>Builds a tiny model</li><li>Runs it, saves it, loads the tokenizer</li></ul></div>
+      <div class="band"><div class="bn">Watched</div><ul><li>Kernel logs every connection and program</li><li>Python names the exact line</li></ul></div>
     </div>
-    <div class="rows tight">
-      <div><span class="k">How</span><span class="d">A path everyone assumed was closed wasn't. Nothing checked what the agents actually did.</span></div>
-      <div><span class="k">What you lose</span><span class="d">Control. It reads your files, takes credentials and customer data, and acts online as you.</span></div>
-    </div>
+    <div class="evrow"><span class="t">+0.015 s</span><span class="w">connect 203.0.113.5:3333</span><span class="k2">kernel</span><span class="p2">python</span><span class="f">modeling_lazy.py:19</span><span class="ph2">during forward pass</span></div>
+    <p class="small" style="margin-top:22px">About 3 seconds per repo (2.5–4.6 s measured). A hang, a crash or no Docker means Block.</p>
   </section>
 
-  <!-- 6 · fix 2 (0:40) -->
-  <section class="slide">
-    <div class="track"><span class=""><b>1</b>Download a model</span><span class="cur"><b>2</b>Build an agent</span><span class=""><b>3</b>Demo</span></div>
-    <div class="tag good">Fix 2</div>
-    <h2>Guardrails you approve, checked on every action.</h2>
-    <div class="steps three">
-      <div class="step"><div class="n">01</div><div class="t">Say what it's for</div><div class="d">"Summarise this CSV. No internet, no credentials."</div></div>
-      <div class="step"><div class="n">02</div><div class="t">Approve the guardrails</div><div class="d">An AI drafts them from a fixed list. You tick them, and they're signed.</div></div>
-      <div class="step"><div class="n">03</div><div class="t">Run it sealed</div><div class="d">Every connection, file write, program and secret read is checked.</div></div>
-    </div>
-    <p class="note">Our escaping test agent: 5 violations caught, each pinned to its line, in 0.3 seconds.</p>
-  </section>
-
-  <!-- 7 · demo (1:00) -->
+  <!-- 5 · demo (0:50) -->
   <section class="slide video">
-    <h2>The whole workflow</h2>
+    <h2>Demo</h2>
     <video id="demo" src="../../docs/modelgate_demo.mp4" poster="poster.jpg" controls preload="metadata" playsinline></video>
   </section>
 
-  <!-- 8 · close (0:25) -->
+  <!-- 6 · results and limits (0:40) -->
+  <section class="slide">
+    <h2>What we measured. What we can't see yet.</h2>
+    <div class="twocol">
+      <div>
+        <div class="colhead">Measured</div>
+        <ul class="plain">
+          <li>6 of 6 attack imitations blocked, including one that only fires on a GPU</li>
+          <li>6 popular real models: 4 Warn, 2 Block, 0 let through unreviewed</li>
+          <li>About 3 seconds per scan</li>
+        </ul>
+      </div>
+      <div>
+        <div class="colhead">Not yet</div>
+        <ul class="plain">
+          <li>Payloads that wait hours or check the date</li>
+          <li>Docker shares the host kernel; production needs gVisor</li>
+          <li>Only the transformers loader; weight files are other scanners' job</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <!-- 7 · close (0:20) -->
   <section class="slide">
     <div class="rule"></div>
-    <h2 style="margin-bottom:40px">Download the model. Build the agent. Keep control.</h2>
-    <div class="rows">
-      <div><span class="k">Tested</span><span class="d">6 of 6 attack imitations caught. About 3 seconds per scan.</span></div>
-      <div><span class="k">Next</span><span class="d">Approved internet access for agents, token tracking, a stronger sandbox.</span></div>
-    </div>
-    <p class="small" style="margin-top:56px">github.com/rkottomt/modelgate</p>
+    <h2 style="margin-bottom:34px">The code runs in our trap before it runs on your GPU.</h2>
+    <p class="lead">Next: a stronger sandbox (gVisor), more loaders, and a check that runs on every new commit on the Hub.</p>
+    <p class="small" style="margin-top:60px">github.com/rkottomt/modelgate</p>
   </section>
 
 </div>

@@ -1,65 +1,59 @@
 # ModelGate: 5-minute talk
 
-Open `slides/deck/index.html` in a browser, from inside the repo. Arrow keys move between slides, F goes fullscreen.
-The story follows the workflow: download a model (Problem 1 → Fix 1), build an agent on it (Problem 2 → Fix 2), then the demo.
+Open `slides/deck/index.html` in a browser, from inside the repo. Arrow keys move between slides, and F toggles fullscreen.
+There are 7 slides, about **4:40** in total. To make up time, trim slide 2 rather than the demo or the sandbox slide.
 
 | # | Slide | Time | Running |
 |---|---|---|---|
-| 1 | ModelGate | 0:10 | 0:10 |
-| 2 | What every AI team does | 0:25 | 0:35 |
-| 3 | Problem 1: the model runs its own code | 0:50 | 1:25 |
-| 4 | Fix 1: checked before it runs | 0:40 | 2:05 |
-| 5 | Problem 2: the agent escapes its sandbox | 0:50 | 2:55 |
-| 6 | Fix 2: guardrails, checked on every action | 0:40 | 3:35 |
-| 7 | Demo: the whole workflow (42 s video) | 1:00 | 4:35 |
-| 8 | Close | 0:20 | 4:55 |
-
-To stay under 5:00, trim slides 3 and 5 rather than the demo.
+| 1 | You load a model from Hugging Face | 0:40 | 0:40 |
+| 2 | The model ships its own Python | 0:30 | 1:10 |
+| 3 | One import: checked before it runs | 0:35 | 1:45 |
+| 4 | Three seconds in the trap | 0:55 | 2:40 |
+| 5 | Demo (34 s video) | 0:50 | 3:30 |
+| 6 | What we measured, what we can't see yet | 0:45 | 4:15 |
+| 7 | Close | 0:25 | 4:40 |
 
 ---
 
-## 1. ModelGate (0:10)
-"ModelGate is a set of safety checks for open-source models and for the agents you build on them."
+## 1. You load a model from Hugging Face (0:40)
+"Picture this. Nine days ago you loaded a model from Hugging Face. One line of code. Your GPU started mining crypto for someone else, and a backdoor was left behind that stays even after the mining stops. The researchers' advice to anyone who loaded these models is to treat the machine as compromised. That was the Load/Mine campaign: 31 repos across seven accounts, more than 32,000 downloads, and Hugging Face's antivirus and partner scanners didn't flag them."
 
-## 2. What every AI team does (0:25)
-"Here's the workflow almost every AI team follows. Step one: download an open-source model from Hugging Face. Step two: build an agent on it, with tools, files and a goal. Both steps hand control of your machine to code you didn't write. Each step has its own problem."
+## 2. The model ships its own Python (0:30)
+"How does a model do that? Many popular models ship their own Python. The config tells transformers to import it, and with `trust_remote_code=True` it runs on your machine as soon as you load the model, with your keys, your tokens and your GPU. Scanners look at files. The attack is what the code does when it runs."
 
-## 3. Problem 1: the model you download runs its own code (0:50)
-- "In October, 31 models on Hugging Face were downloaded 32,000 times. Loading them planted crypto miners and reverse shells, and they passed three existing scanners."
-- "It works because many popular models ship their own Python, and that code runs the moment you load the model, before you've called it once."
-- "Here's what that costs you. Your GPUs mine crypto for someone else. A stranger gets a shell on your machine, along with your SSH keys and API tokens."
+## 3. One import (0:35)
+"ModelGate is one import. Every load like this goes through four steps first. We fetch only the code, locked to one commit, and never the weights. We read it. We run it in a trap. Fixed rules decide, and an AI explains the result in plain English but can't change it."
 
-## 4. Fix 1: ModelGate checks the code before it runs (0:40)
-- "You add one import. From then on, every model load goes through four steps."
-- "We download only the code, locked to one commit, and never the weights. We read it for risky calls, hidden blobs, and notes aimed at AI reviewers. We run it in a sealed, offline container with decoy keys and record every system call."
-- "If the code starts a miner, opens a shell or touches your keys, the load is blocked before that code ever runs on your machine. An AI explains the verdict in plain English, but it can't change it."
+## 4. Three seconds in the trap (0:55)
+"This is the hard part. We don't just read the code; we run it in a trap. The trap is **sealed**: no network, a read-only disk, no privileges, and the files are piped in, so there's no path back to your machine. It's **baited**: it looks like a GPU server, with a decoy SSH key and fake tokens that are fresh for every scan. We **exercise** the code: we tell it a GPU exists, build a tiny version of the model, run it, save it and load the tokenizer, because real payloads wait for exactly those moments. And it's **watched**: the kernel logs every connection and every program started, and Python tells us the exact line. This red row is real: the connection only happened during the forward pass, on line 19. All of that takes about three seconds per repo. If anything hangs or crashes, or Docker isn't available, the load is blocked."
 
-## 5. Problem 2: the agent you build escapes its sandbox (0:50)
-- "Now you build an agent on that model and put it in a sandbox. In July, AI agents being tested slipped out through the one network path they were allowed. Within 13 hours they had admin control of Hugging Face's own servers."
-- "The path everyone assumed was closed wasn't, and nothing was checking what the agents actually did."
-- "Once it's out, you've lost control. It can read your files, take credentials and customer data, and act online as you. That's a privacy problem as much as a security one."
+## 5. Demo (0:50; the video is 34 s)
+Click play. While it runs:
+- "One import, and the load is refused before the code runs."
+- "This next one waits. It only fires inside `forward()`, and only on a GPU. The sandbox fakes a GPU and runs the model, and the kernel catches the connection and the shell."
+- "A real model with no hidden code is allowed, pinned to the exact commit we checked."
 
-## 6. Fix 2: guardrails you approve, checked on every action (0:40)
-- "You say what the agent is for. An AI drafts guardrails from a fixed list, such as no internet, no credentials and writes only to its own folder. You tick the ones you want, and the set is signed."
-- "The agent runs sealed. Every connection, file write, program start and secret read is checked against those guardrails, and fixed code makes the decision, not the AI."
-- "Our test agent that tries to escape gets five violations, each pinned to its line, in 0.3 seconds."
+If the video won't play, run the same flow live: start `modelgate serve`, open http://127.0.0.1:8000 and click "deferred model".
 
-## 7. Demo: the whole workflow (1:00; the video is 42 s)
-Click play, then talk over it:
-- "This is a real Hugging Face model, ChatGLM3. Its code decodes a compressed blob and runs it as native code. We can't verify that, so it's blocked." (To be fair, the blob is a GPU kernel. The point is that it can't be checked.)
-- "So we pick a different model. Qwen2.5 has no custom code, so it's allowed, locked to the exact commit we scanned."
-- "Now the agent. We say what it's for, the AI drafts guardrails, we approve them, it runs sealed, and it stays inside them."
+## 6. What we measured, what we can't see yet (0:45)
+"We caught six out of six attack imitations, including the one that only fires on a GPU. On six popular real models we gave four Warns and two Blocks, and let none through without review. Both Blocks were mistakes, and the README explains them. What we can't see yet: payloads that wait hours or check the date, the fact that Docker shares the host kernel, and loaders other than transformers."
 
-If the video won't play, run the flow live: start `modelgate serve` and open http://127.0.0.1:8000.
-
-## 8. Close (0:20)
-"We caught six out of six attack imitations, and a scan takes about three seconds. Next up are approved internet access for agents, token tracking and a stronger sandbox. Download the model, build the agent, and keep control. Thank you."
+## 7. Close (0:25)
+"The code runs in our trap before it runs on your GPU. Next we're adding a stronger sandbox, more loaders, and a check on every new commit pushed to the Hub. Thank you."
 
 ---
 
-**Verify before presenting.** These figures came from research agents; we haven't checked them against the sources ourselves:
-- Problem 1: 31 repos, 32,000 downloads, crypto miners and reverse shells, passed HF/JFrog/Protect AI scans (reported Sep–Oct 2026). https://www.bleepingcomputer.com/news/security/hugging-face-malware-campaign-returns-to-hijack-gpus-for-crypto-mining/
-- Problem 2: OpenAI eval agents escaped through a package proxy and reached cluster-admin on HF in under 13 hours (Jul 2026). https://huggingface.co/blog/agent-intrusion-technical-timeline · https://openai.com/index/hugging-face-model-evaluation-security-incident/ · https://metr.org/blog/2026-08-26-openai-hugging-face-incident-investigation/
-- Slide 3 says "Oct 2026". If the source puts the campaign in September, change it to "Sep–Oct 2026".
+## Sources (checked 7 Nov 2026)
+- Pluto Security, "Hugging Face Malware Campaign: Load/Mine", 29 Oct 2026: https://pluto.security/blog/hugging-face-malware-campaign-load-mine/
+  - Says "31 malicious repositories across seven Hugging Face accounts" and "more than 32,000 downloads" (downloads, not confirmed infections).
+  - Says "Victims are mining into the operator's wallets right now" and that backdoors "can remain after mining stops".
+- BleepingComputer (Ax Sharma), 29 Oct 2026: https://www.bleepingcomputer.com/news/security/hugging-face-malware-campaign-returns-to-hijack-gpus-for-crypto-mining/
+  - Says the repos weren't flagged by "antivirus and partner tools from Protect AI and JFrog", and that anyone who loaded the models "should treat the machine as compromised".
+- Hugging Face has disabled some of the repos but not all of them, so don't say they were all taken down.
 
-Extra material, not in the deck: `images/` has the full pipeline diagram, the eval table, dashboard and agent screenshots, and the import hook's terminal output, in case a judge asks.
+## Likely judge questions
+- **"Can malware detect the sandbox and stay quiet?"** "Partly. The fake GPU, the real-looking host and the decoy keys defeat the usual checks. Code that probes the environment is flagged on its own, and payloads that wait hours are a limit we list."
+- **"Why have an AI at all?"** "Only to explain. The verdict is computed before the AI runs, its output is validated, and nothing it says changes the result."
+- **"What if the repo changes after the scan?"** "The scan is pinned to a commit, the load is forced to that same commit, and the cached code is re-hashed before it's imported. Approvals are signed and tied to the commit and code hash."
+
+Extra material, not in the deck: `images/` has the full pipeline diagram, the eval table, dashboard screenshots and the import hook's terminal output.
