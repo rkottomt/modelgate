@@ -13,8 +13,6 @@ Hackathon slide materials for ModelGate.
 | `images/terminal_import_hook.png` | Real output of `examples/demo_load.py fixtures/sneaky_model` (LLM off). Findings and the AI panel are trimmed, and the trims are labelled in the image |
 | `images/architecture.svg` / `.png` | Hand-written pipeline diagram; the LLM is drawn as a dashed side branch |
 | `images/eval.png` | Eval summary and table drawn from `../eval_results.json` |
-| `images/agents_draft.png` | Agent guardrails page: AI-drafted contract for `rogue_eval_agent`, with checkboxes and its reasons |
-| `images/agents_run.png` | Agent guardrails page: run result, 5 violations with code lines, the timeline and resource use |
 | `deck/index.html` | **The slideshow.** Open it in a browser: arrow keys or click to move, F for fullscreen. 8 slides following the workflow (download a model, build an agent), about 4:55. Slide 7 plays `docs/modelgate_demo.mp4` |
 | `tools/` | Scripts that regenerate the images (`tools/build/` holds intermediate files) |
 
@@ -37,8 +35,6 @@ $PY slides/tools/terminal.py
 # architecture PNG from the SVG
 $PY slides/tools/svg2png.py "$PWD/slides/images/architecture.svg" "$PWD/slides/images/architecture.png" 1510 600
 
-# agent guardrails page: AI draft + a run of the rogue demo agent (needs the server and the LLM key)
-$PY slides/tools/agent_screenshots.py
 
 # eval graphic from eval_results.json (the "Why" notes are hard-coded in the script, taken from README)
 $PY slides/tools/eval_graphic.py

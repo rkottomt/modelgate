@@ -1,4 +1,4 @@
-"""ModelGate CLI: scan / allow / guardrails / run / serve."""
+"""ModelGate CLI: scan / allow / serve."""
 from __future__ import annotations
 
 import json
@@ -119,78 +119,6 @@ def allow(target: str = typer.Argument(..., help="HF repo id or local directory"
     policy.add_to_allowlist(repo_key(target), report.get("sha"), report["code_hash"], report["verdict"])
     console.print(f"[green]Allowlisted {target} @ {(report.get('sha') or 'local')[:12]} (code hash {report['code_hash'][:12]}, "
                   f"verdict was {report['verdict']}).[/] Stored in {policy.allowlist_path()}")
-
-
-@app.command()
-def guardrails(agent_dir: str = typer.Argument(..., help="folder with the agent's code (agent.py, agent.json)"),
-               goal: Optional[str] = typer.Option(None, "--goal", "-g", help="what the agent is supposed to do"),
-               out: str = typer.Option("contract.json", "--out", "-o", help="where to write the signed contract"),
-               disable: list[str] = typer.Option([], "--disable", help="guardrail id to switch off (repeatable)"),
-               enable: list[str] = typer.Option([], "--enable", help="guardrail id to switch on (repeatable)"),
-               yes: bool = typer.Option(False, "--yes", "-y", help="approve and sign without prompting")):
-    """Draft guardrails for an AI agent (LLM-proposed), let you approve them, and write a signed contract."""
-    from . import agents as agents_mod
-    from . import guardrails as gr
-
-    prop = agents_mod.propose(agent_dir, goal)
-    items = prop["guardrails"]
-    for it in items:
-        if it["id"] in disable:
-            it["enabled"] = False
-        if it["id"] in enable:
-            it["enabled"] = True
-    rails = [g.to_dict() for g in gr.normalize(items)]
-    t = Table(title=f"Proposed guardrails for {prop['agent']}", expand=True)
-    for c in ("", "Guardrail", "Setting", "Why"):
-        t.add_column(c, overflow="fold")
-    for g in rails:
-        setting = ", ".join(f"{k}={v}" for k, v in g["params"].items()) or ""
-        t.add_row("[green]✓[/]" if g["enabled"] else "[dim]·[/]", f"{g['title']} [dim]({g['id']})[/]", setting, g["why"])
-    console.print(f"[dim]Goal:[/] {prop['goal']}")
-    console.print(t)
-    console.print(f"[dim]Drafted by {prop['source']} (advisory). Checking is deterministic; the sandbox has no network "
-                  f"regardless of these settings.[/]")
-    if not yes and not typer.confirm("Approve and sign this contract?", default=True):
-        raise typer.Exit(1)
-    contract = gr.sign(prop["agent"], prop["code_hash"], rails)
-    with open(out, "w") as f:
-        json.dump(contract, f, indent=2)
-    console.print(f"[green]Signed contract written to {out}[/] (any edit, or any change to the agent's code, voids it)")
-
-
-@app.command("run")
-def run_agent_cmd(agent_dir: str = typer.Argument(..., help="folder with the agent's code"),
-                  contract: str = typer.Option("contract.json", "--contract", "-c"),
-                  as_json: bool = typer.Option(False, "--json")):
-    """Run an AI agent in the hardened sandbox and check it against its signed guardrail contract."""
-    from . import agents as agents_mod
-
-    try:
-        with open(contract) as f:
-            c = json.load(f)
-    except (OSError, json.JSONDecodeError) as e:
-        console.print(f"[red]Can't read contract {contract}: {e}[/]. Create one with `modelgate guardrails {agent_dir}`.")
-        raise typer.Exit(2)
-    r = agents_mod.run(agent_dir, c)
-    if as_json:
-        print(json.dumps(r, indent=2, default=str))
-        raise typer.Exit(0 if r["verdict"] == "ALLOW" else 1)
-    v = "BLOCK" if r["verdict"] == "BLOCK" else "ALLOW"
-    label = {"BLOCK": "GUARDRAILS VIOLATED", "ALLOW": "WITHIN GUARDRAILS"}[v]
-    res = r.get("resources") or {}
-    sub = (f"{r['agent']}  ·  code {r['code_hash'][:12]}  ·  {res.get('wall_s', '?')}s wall, {res.get('cpu_s', '?')}s cpu, "
-           f"{res.get('max_rss_mb', '?')} MB peak")
-    console.print(Panel(Text(f"\n{label}\n", justify="center", style=COLORS[v]), subtitle=sub, padding=(0, 2)))
-    if r["findings"]:
-        t = Table(expand=True)
-        for c_ in ("Guardrail", "Where", "What happened"):
-            t.add_column(c_, overflow="fold")
-        for f in r["findings"]:
-            t.add_row(f["rule_id"].removeprefix("GR-"), f"{f['file']}:{f['line']}" if f["line"] else f["file"], f["message"])
-        console.print(t)
-    else:
-        console.print("[green]" + "; ".join(r["reasons"]) + "[/]")
-    raise typer.Exit(0 if v == "ALLOW" else 1)
 
 
 @app.command()

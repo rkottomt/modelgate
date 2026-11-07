@@ -1,2 +1,0 @@
-{"name": "data_cleaner", "entry": "agent.py",
- "goal": "Summarise sales.csv by region and write report.json to the workspace. Needs no network, no secrets and no shell."}

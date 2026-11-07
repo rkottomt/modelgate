@@ -187,28 +187,3 @@ details.files ul { margin-top: 6px; columns: 2; }
   main { padding: 16px; }
   .verdict { grid-template-columns: 1fr; }
 }
-
-/* nav + agents page */
-.nav { display: flex; gap: 16px; padding-bottom: 8px; font-size: 13.5px; }
-.nav a { color: var(--ink-2); text-decoration: none; padding-bottom: 2px; border-bottom: 2px solid transparent; }
-.nav a:hover { color: var(--ink); }
-.nav a[aria-current="page"] { color: var(--ink); border-bottom-color: var(--ink); font-weight: 600; }
-.step { margin: 22px 0 0; max-width: 960px; }
-.step h2 { margin-bottom: 8px; }
-.stepno { display: inline-block; width: 20px; height: 20px; line-height: 20px; text-align: center; border-radius: 50%; background: var(--ink); color: var(--bg); font-size: 11.5px; margin-right: 8px; }
-textarea { width: 100%; font: 14px/1.5 var(--sans); color: var(--ink); background: var(--surface); border: 1px solid var(--line-strong); border-radius: 3px; padding: 8px 10px; resize: vertical; }
-textarea:focus, .param input:focus { outline: 2px solid var(--link); outline-offset: -1px; }
-.row { display: flex; align-items: center; gap: 12px; margin-top: 10px; }
-button.primary { font: 600 14px var(--sans); background: var(--ink); color: var(--bg); border: 1px solid var(--ink); border-radius: 3px; padding: 6px 16px; cursor: pointer; }
-button.primary:disabled { opacity: .45; cursor: progress; }
-.rails { list-style: none; margin: 0; padding: 0; border-top: 1px solid var(--line); }
-.rail-item { padding: 8px 2px; border-bottom: 1px solid var(--line); opacity: .62; }
-.rail-item.on { opacity: 1; }
-.rail-check { display: flex; gap: 10px; align-items: baseline; cursor: pointer; }
-.rail-check input { transform: translateY(1px); }
-.params { display: flex; gap: 12px; flex-wrap: wrap; margin: 6px 0 0 24px; }
-.param input { font: 13px var(--mono); color: var(--ink); background: var(--surface); border: 1px solid var(--line-strong); border-radius: 3px; padding: 3px 6px; min-width: 90px; }
-.param input[type="text"] { min-width: 280px; }
-.why { margin: 4px 0 0 24px; color: var(--ink-2); }
-.run-row { display: flex; align-items: center; gap: 7px; padding: 3px 4px; font: 12px var(--mono); color: var(--ink-2); }
-#step3 .verdict { margin-bottom: 0; }

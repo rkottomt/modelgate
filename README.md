@@ -53,7 +53,7 @@ AutoModel.from_pretrained("fixtures/sneaky_model", trust_remote_code=True)
 
 ## Demo
 
-42-second walkthrough: a real Hugging Face model gets blocked, a different one passes, then an agent gets guardrails and runs: [docs/modelgate_demo.mp4](docs/modelgate_demo.mp4)
+Demo video: [docs/modelgate_demo.mp4](docs/modelgate_demo.mp4)
 
 ```bash
 uv venv -p 3.12 .venv && uv pip install -p .venv -e ".[dev]" torch
@@ -90,31 +90,6 @@ Other commands: `modelgate scan <repo> --revision <rev> --json`, `modelgate allo
 The key is never logged or included in reports.
 
 All fixtures are **harmless imitations**: connect to the RFC 5737 documentation IP 203.0.113.5, open a decoy key inside a temp HOME, `echo pwned`, `exec` of a base64-decoded `print("hi")`, `memfd_create` then close.
-
-## Agent guardrails (new)
-
-The same pipeline, pointed at AI agents instead of model repos. The 2026 agent incidents came down to network
-paths that were assumed closed; this checks it instead.
-
-```bash
-modelgate guardrails examples/agents/rogue_eval_agent   # AI drafts a contract; you approve; it's signed
-modelgate run examples/agents/rogue_eval_agent          # run in the offline container, check every action
-```
-
-Or use the **Agent guardrails** tab in the dashboard (`/agents`): describe the agent's goal, tick the drafted
-guardrails, run.
-
-- The AI picks from a **fixed catalog** (`modelgate/guardrails.py`): no network / only named hosts, no programs /
-  only named programs, no credentials, workspace-only writes, no generated code, no native code, time and memory
-  limits. Unknown rules, wildcard hosts and out-of-range limits are dropped; anything missing defaults to on.
-- The approved contract is HMAC-signed and bound to the agent's code hash. Editing it, or changing the code, voids it
-  (fail closed).
-- Checking is plain code over strace and audit-hook events, attributed to `file:line`. CPU time, wall time and peak
-  memory are reported per run.
-- `examples/agents/rogue_eval_agent` is a harmless imitation of an escaping eval agent (documentation IP, decoy
-  secrets, `echo`): 5 violations. `examples/agents/data_cleaner` passes.
-- Not yet: real egress through an allowlisting proxy (the container has no network regardless), token/cost metering,
-  long-running agents and fleet views. See the roadmap in `slides/SLIDES.md`.
 
 ## Eval results
 

@@ -17,12 +17,10 @@ import time
 from collections import OrderedDict
 from pathlib import Path
 
-from fastapi import Body, FastAPI, HTTPException, Query
+from fastapi import FastAPI, HTTPException, Query
 from fastapi.responses import FileResponse, JSONResponse
 
-from .. import agents as agents_mod
 from .. import explain as explain_mod
-from .. import guardrails as gr
 from ..hook import _headline
 from ..scanner import scan
 
@@ -60,14 +58,9 @@ def index():
     return FileResponse(STATIC / "index.html", media_type="text/html")
 
 
-@app.get("/agents")
-def agents_page():
-    return FileResponse(STATIC / "agents.html", media_type="text/html")
-
-
 @app.get("/static/{name}")
 def static(name: str):
-    allowed = {"app.js": "text/javascript", "agents.js": "text/javascript", "style.css": "text/css"}
+    allowed = {"app.js": "text/javascript", "style.css": "text/css"}
     if name not in allowed:
         raise HTTPException(404)
     return FileResponse(STATIC / name, media_type=allowed[name])
@@ -196,48 +189,4 @@ def api_report(token: str = Query(..., max_length=40)):
         report = _reports.get(token)
     if report is None:
         raise HTTPException(404, "Scan not found. Run it again.")
-    return JSONResponse(report)
-
-
-# ---------------- agents: guardrail contracts + sandboxed runs ----------------
-
-def _agent_dir(name) -> Path:
-    if not isinstance(name, str) or not re.fullmatch(r"[\w-]{1,64}", name):
-        raise HTTPException(400, "Unknown agent.")
-    d = agents_mod.AGENTS_DIR / name
-    if not d.is_dir():
-        raise HTTPException(404, "Unknown agent.")
-    return d
-
-
-@app.get("/api/agents")
-def api_agents():
-    out = []
-    if agents_mod.AGENTS_DIR.is_dir():
-        for d in sorted(p for p in agents_mod.AGENTS_DIR.iterdir() if p.is_dir()):
-            meta = agents_mod.load_meta(d)
-            out.append({"id": d.name, "name": meta["name"], "goal": meta["goal"], "entry": meta["entry"],
-                        "files": sorted(p.name for p in d.iterdir() if p.is_file())})
-    return {"agents": out, "catalog": {k: {"title": v["title"], "desc": v["desc"]} for k, v in gr.CATALOG.items()},
-            "llm_enabled": explain_mod.llm_config() is not None}
-
-
-@app.post("/api/agents/propose")
-def api_propose(body: dict = Body(...)):
-    d = _agent_dir(body.get("agent"))
-    goal = body.get("goal")
-    goal = goal[:2000] if isinstance(goal, str) else None
-    return JSONResponse(agents_mod.propose(d, goal))
-
-
-@app.post("/api/agents/run")
-def api_run(body: dict = Body(...)):
-    d = _agent_dir(body.get("agent"))
-    # Clicking "Run" in the UI is the human approval: the ticked set is normalized and signed here, then checked.
-    bundle_hash = agents_mod.fetch(str(d)).code_hash
-    contract = gr.sign(d.name, bundle_hash, body.get("guardrails"))
-    report = agents_mod.run(d, contract)
-    for f in report.get("findings", []):
-        f["context"] = _context(str(d), f.get("file", ""), f.get("line") or 0)
-    report["contract"] = {k: contract[k] for k in ("approved_at", "mac")}
     return JSONResponse(report)

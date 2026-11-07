@@ -201,22 +201,6 @@ def run(bundle: CodeBundle, force_mode: str | None = None) -> SandboxResult:
                               "Set MODELGATE_ALLOW_UNISOLATED=1 to run a best-effort, non-isolated analysis.")
 
 
-def run_agent(bundle: CodeBundle, entry: str, force_mode: str | None = None) -> SandboxResult:
-    """Run an AI agent's entry script (e.g. agent.py) inside the same hardened sandbox (modelgate run)."""
-    if entry not in bundle.files or not entry.endswith(".py"):
-        return SandboxResult("none", True, "error", None, 0.0, note=f"entry script {entry!r} not found in the agent folder")
-    try:
-        tar = build_tar(bundle, {"agent": entry, "modules": [], "refs": [], "fake_gpu": False})
-    except (ValueError, OSError) as e:
-        return SandboxResult("none", True, "error", None, 0.0, note=f"refused to stage files: {e}")
-    if force_mode == "docker" or (force_mode is None and docker_available()):
-        return _run_docker(tar)
-    if force_mode == "subprocess" or os.environ.get("MODELGATE_ALLOW_UNISOLATED") == "1":
-        return _run_subprocess(tar)
-    return SandboxResult("none", False, "not_isolated", None, 0.0,
-                         note="Docker (with image modelgate-sandbox) is unavailable, so the agent was NOT run.")
-
-
 def _status(code: int | None, timed_out: bool) -> str:
     if timed_out:
         return "timeout"
