@@ -53,6 +53,8 @@ AutoModel.from_pretrained("fixtures/sneaky_model", trust_remote_code=True)
 
 ## Demo
 
+32-second walkthrough of the dashboard and the import hook: [docs/modelgate_demo.mp4](docs/modelgate_demo.mp4)
+
 ```bash
 uv venv -p 3.12 .venv && uv pip install -p .venv -e ".[dev]" torch
 docker build -t modelgate-sandbox:latest docker/       # sandbox image (torch CPU + transformers + strace)
