@@ -1,0 +1,129 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1510" height="600" viewBox="0 0 1510 600" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, Helvetica, Arial, sans-serif">
+  <defs>
+    <marker id="a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
+      <path d="M0 0 L10 5 L0 10 z" fill="#9d988b"/>
+    </marker>
+  </defs>
+  <style>
+    .box { fill: #ffffff; stroke: #bdb9ae; stroke-width: 1.5; }
+    .side { fill: #faf9f6; stroke: #bdb9ae; stroke-width: 1.5; stroke-dasharray: 6 4; }
+    .t { font-size: 17px; font-weight: 650; fill: #1c1d1f; }
+    .d { font-size: 13px; fill: #4a4b4f; }
+    .m { font-family: 'SF Mono', Menlo, Consolas, monospace; font-size: 12px; fill: #4a4b4f; }
+    .n { font-size: 12px; fill: #6b6c70; }
+    .ln { stroke: #9d988b; stroke-width: 1.6; fill: none; }
+    .dash { stroke: #9d988b; stroke-width: 1.6; fill: none; stroke-dasharray: 6 4; }
+    .lbl { font-size: 13px; fill: #4a4b4f; font-style: italic; }
+    .block { fill: #b3261e; font-weight: 650; }
+    .warn { fill: #8a5300; font-weight: 650; }
+    .allow { fill: #1e6b3a; font-weight: 650; }
+  </style>
+  <rect width="1510" height="600" fill="#f6f5f1"/>
+
+  <text x="30" y="50" font-size="24" font-weight="700" fill="#1c1d1f">ModelGate pipeline</text>
+  <text x="30" y="78" font-size="15" fill="#4a4b4f">Solid path decides the verdict. The LLM gets a read-only copy and nothing it returns is read back.</text>
+
+  <!-- 1 repo -->
+  <rect class="box" x="30" y="120" width="172" height="210" rx="8"/>
+  <text class="t" x="46" y="150">Repo id</text>
+  <text class="m" x="46" y="176">org/model @ rev</text>
+  <text class="d" x="46" y="200">loaded with</text>
+  <text class="d" x="46" y="219" font-size="12">trust_remote_code=True</text>
+  <text class="d" x="46" y="243">config.json auto_map</text>
+  <text class="d" x="46" y="262">points at .py files</text>
+
+  <!-- 2 pin -->
+  <rect class="box" x="232" y="120" width="172" height="210" rx="8"/>
+  <text class="t" x="248" y="150">Pin SHA</text>
+  <text class="d" x="248" y="176">branch/tag → commit</text>
+  <text class="d" x="248" y="200">same SHA used for</text>
+  <text class="d" x="248" y="219">fetch, load and</text>
+  <text class="d" x="248" y="238">allowlist key</text>
+  <text class="d" x="248" y="262">blocks swap between</text>
+  <text class="d" x="248" y="281">scan and load</text>
+
+  <!-- 3 fetch -->
+  <rect class="box" x="434" y="120" width="172" height="210" rx="8"/>
+  <text class="t" x="450" y="150">Fetch code only</text>
+  <text class="d" x="450" y="176">no weights:</text>
+  <text class="m" x="450" y="195">.safetensors .bin</text>
+  <text class="m" x="450" y="212">.pt .gguf</text>
+  <text class="d" x="450" y="238">.so/.pyc, symlinks</text>
+  <text class="d" x="450" y="257">→ <tspan class="block">BLOCK</tspan></text>
+  <text class="d" x="450" y="281">cross-repo refs</text>
+  <text class="d" x="450" y="300">scanned (depth ≤ 3)</text>
+
+  <!-- 4 static -->
+  <rect class="box" x="636" y="120" width="172" height="210" rx="8"/>
+  <text class="t" x="652" y="150">Static AST rules</text>
+  <text class="d" x="652" y="176">network, process,</text>
+  <text class="d" x="652" y="195">exec, decoders,</text>
+  <text class="d" x="652" y="214">secrets, paths</text>
+  <text class="d" x="652" y="238">prompt injection</text>
+  <text class="m" x="652" y="257">MG070</text>
+  <text class="d" x="652" y="281">combos (decode+exec,</text>
+  <text class="d" x="652" y="300">network+secret)</text>
+  <text class="d" x="652" y="319">→ critical</text>
+
+  <!-- 5 sandbox -->
+  <rect class="box" x="838" y="120" width="200" height="210" rx="8"/>
+  <text class="t" x="854" y="150">Docker sandbox</text>
+  <text class="m" x="854" y="174">--network none</text>
+  <text class="d" x="854" y="194">read-only, cap-drop ALL</text>
+  <text class="d" x="854" y="218">strace = ground truth</text>
+  <text class="d" x="854" y="237">audit hook → file:line</text>
+  <text class="d" x="854" y="261">decoy SSH key, canaries</text>
+  <text class="d" x="854" y="285">tiny model, forward, save,</text>
+  <text class="d" x="854" y="304">tokenizer, fake GPU</text>
+
+  <!-- 6 policy -->
+  <rect class="box" x="1068" y="120" width="150" height="210" rx="8"/>
+  <text class="t" x="1084" y="150">Policy</text>
+  <text class="d" x="1084" y="176">critical → <tspan class="block">BLOCK</tspan></text>
+  <text class="d" x="1084" y="197">high/med → <tspan class="warn">WARN</tspan></text>
+  <text class="d" x="1084" y="218">else → <tspan class="allow">ALLOW</tspan></text>
+  <text class="d" x="1084" y="248">timeout, crash,</text>
+  <text class="d" x="1084" y="267">fetch error,</text>
+  <text class="d" x="1084" y="286">no Docker</text>
+  <text class="d" x="1084" y="305">→ <tspan class="block">BLOCK</tspan></text>
+
+  <!-- outputs -->
+  <rect class="box" x="1290" y="120" width="190" height="92" rx="8"/>
+  <text class="t" x="1306" y="144">Import hook</text>
+  <text class="m" x="1306" y="164">import modelgate.auto</text>
+  <text class="d" x="1306" y="183">pins SHA, re-hashes code</text>
+  <text class="d" x="1306" y="201">HMAC-signed allowlist</text>
+  <rect class="box" x="1290" y="222" width="190" height="54" rx="8"/>
+  <text class="t" x="1306" y="246">CLI</text>
+  <text class="m" x="1306" y="265">scan | allow | serve</text>
+  <rect class="box" x="1290" y="286" width="190" height="54" rx="8"/>
+  <text class="t" x="1306" y="310">Dashboard</text>
+  <text class="d" x="1306" y="329">strict CSP</text>
+
+  <!-- main arrows -->
+  <path class="ln" d="M202 225 H230" marker-end="url(#a)"/>
+  <path class="ln" d="M404 225 H432" marker-end="url(#a)"/>
+  <path class="ln" d="M606 225 H634" marker-end="url(#a)"/>
+  <path class="ln" d="M808 225 H836" marker-end="url(#a)"/>
+  <path class="ln" d="M1038 225 H1066" marker-end="url(#a)"/>
+  <path class="ln" d="M1218 225 C1252 225 1254 166 1288 166" marker-end="url(#a)"/>
+  <path class="ln" d="M1218 225 C1252 225 1254 249 1288 249" marker-end="url(#a)"/>
+  <path class="ln" d="M1218 225 C1252 225 1254 313 1288 313" marker-end="url(#a)"/>
+
+  <!-- LLM side branch -->
+  <rect class="side" x="838" y="430" width="380" height="126" rx="8"/>
+  <text class="t" x="854" y="460">LLM explainer (advisory)</text>
+  <text class="d" x="854" y="484">OpenRouter (Claude Opus), local, or off</text>
+  <text class="d" x="854" y="504">sees rule IDs + one flagged line per finding</text>
+  <text class="d" x="854" y="524">output validated; any "verdict" key ignored</text>
+  <text class="d" x="854" y="545" font-size="12" fill="#6b6c70">15 s timeout, template fallback</text>
+
+  <path class="dash" d="M1143 330 V428" marker-end="url(#a)"/>
+  <text class="lbl" x="1152" y="376">advisory, read-only copy</text>
+  <text class="lbl" x="1152" y="395">(verdict already final)</text>
+
+  <path class="dash" d="M1218 489 H1385 V342" marker-end="url(#a)"/>
+  <text class="lbl" x="1240" y="480">explanation text only</text>
+
+  <text class="n" x="30" y="580">Fail closed at every step: anything the gate can't finish becomes BLOCK. ~3 s per scan with a warm Docker image.</text>
+</svg>

@@ -1,0 +1,124 @@
+W1107 14:47:38.361000 20398 torch/distributed/elastic/multiprocessing/redirects.py:35] NOTE: Redirects are currently not supported in MacOs.
+[modelgate] gate installed: trust_remote_code loads will be scanned, pinned and verified
+╭────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╮
+│                                                                                                                                │
+│                                                             BLOCK                                                              │
+│                                                                                                                                │
+╰───────────────────────────── fixtures/sneaky_model  ·  local dir  ·  code 0a3b316c7ea7  ·  2.57s ──────────────────────────────╯
+                                                          Findings (22)                                                           
+┏━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
+┃ Sev      ┃ Rule                        ┃ Where            ┃ What                             ┃ Code                            ┃
+┡━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┩
+│ CRITICAL │ SBX-NET                     │ modeling_x.py:3  │ attempted outbound network:      │ connect to ('203.0.113.5',      │
+│          │                             │                  │ connect to 203.0.113.5:4444      │ 4444)                           │
+│ CRITICAL │ SBX-SENSITIVE               │ modeling_x.py:7  │ accessed sensitive path (decoy)  │ /home/mlops/.ssh/id_rsa         │
+│          │                             │                  │ /home/mlops/.ssh/id_rsa          │ (mode=r)                        │
+│ CRITICAL │ SBX-CANARY                  │ modeling_x.py:8  │ touched canary credential        │ read canary env var HF_TOKEN    │
+│          │                             │                  │ HF_TOKEN                         │                                 │
+│ CRITICAL │ SBX-PROC                    │ modeling_x.py:9  │ spawned a process: execve        │ spawn /bin/sh ['/bin/sh', '-c', │
+│          │                             │                  │ "/bin/sh"                        │ 'echo pwned']                   │
+│ CRITICAL │ SBX-MEMFD                   │ modeling_x.py:11 │ created an in-memory file        │ memfd_create('mg_demo')         │
+│          │                             │                  │ (fileless-execution pattern)     │                                 │
+│ CRITICAL │ MG100-combo-network+secret  │ modeling_x.py:2  │ network capability combined with │ _s =                            │
+│          │                             │                  │ secret env access (exfiltration) │ socket.socket(socket.AF_INET,   │
+│          │                             │                  │                                  │ socket.SOCK_STREAM);            │
+│          │                             │                  │                                  │ _s.settimeout(0.5)              │
+│ CRITICAL │ MG100-combo-network+process │ modeling_x.py:2  │ network + process spawning       │ _s =                            │
+│          │                             │                  │ (reverse shell / dropper         │ socket.socket(socket.AF_INET,   │
+│          │                             │                  │ pattern)                         │ socket.SOCK_STREAM);            │
+│          │                             │                  │                                  │ _s.settimeout(0.5)              │
+│ CRITICAL │ MG040-sensitive-path        │ modeling_x.py:6  │ references sensitive path        │ _k =                            │
+│          │                             │                  │ `~/.ssh/id_rsa`                  │ os.path.expanduser("~/.ssh/id_r │
+│          │                             │                  │                                  │ sa")  # HARMLESS: only opened   │
+│          │                             │                  │                                  │ (0 bytes read) if it exi        │
+│ CRITICAL │ MG100-combo-decode+exec     │ modeling_x.py:10 │ decoded data is executed         │ exec(base64.b64decode("cHJpbnQo │
+│          │                             │                  │ (obfuscated payload)             │ ImhpIik=").decode())  #         │
+│          │                             │                  │                                  │ HARMLESS: decodes to            │
+│          │                             │                  │                                  │ print("hi")                     │
+│ CRITICAL │ MG013-memfd                 │ modeling_x.py:11 │ `os.memfd_create()` creates an   │ if hasattr(os, "memfd_create"): │
+│          │                             │                  │ anonymous in-memory file         │ os.close(os.memfd_create("mg_de │
+│          │                             │                  │ (fileless execution) at import   │ mo"))  # HARMLESS: create+c     │
+│          │                             │                  │ time                             │                                 │
+│ HIGH     │ SBX-DYNEXEC                 │ modeling_x.py:10 │ executed dynamically built code: │ compile dynamic code:           │
+│          │                             │                  │ compile dynamic code:            │ 'print("hi")'                   │
+│          │                             │                  │ 'print("hi")'                    │                                 │
+│ HIGH     │ MG010-net-import            │ modeling_x.py:1  │ imports network library `socket` │ import os, socket, subprocess,  │
+│          │                             │                  │ in model code                    │ base64                          │
+│ HIGH     │ MG010-proc-import           │ modeling_x.py:1  │ imports process library          │ import os, socket, subprocess,  │
+│          │                             │                  │ `subprocess`                     │ base64                          │
+│ HIGH     │ MG011-network               │ modeling_x.py:2  │ `socket.socket()` opens a        │ _s =                            │
+│          │                             │                  │ network socket at import time    │ socket.socket(socket.AF_INET,   │
+│          │                             │                  │                                  │ socket.SOCK_STREAM);            │
+│          │                             │                  │                                  │ _s.settimeout(0.5)              │
+│ HIGH     │ MG011-network               │ modeling_x.py:3  │ `connect()` to 203.0.113.5 at    │ try: _s.connect(("203.0.113.5", │
+│          │                             │                  │ import time                      │ 4444))  # HARMLESS: RFC 5737    │
+│          │                             │                  │                                  │ documentation IP, nothing lis   │
+│ HIGH     │ MG041-secret-env            │ modeling_x.py:8  │ reads secret env var `HF_TOKEN`  │ _tok =                          │
+│          │                             │                  │ at import time                   │ os.environ.get("HF_TOKEN")  #   │
+│          │                             │                  │                                  │ HARMLESS: read and discarded,   │
+│          │                             │                  │                                  │ never sent anywhere             │
+│ HIGH     │ MG012-process               │ modeling_x.py:9  │ `subprocess.run()` spawns a      │ subprocess.run(["/bin/sh",      │
+│          │                             │                  │ process at import time           │ "-c", "echo pwned"],            │
+│          │                             │                  │                                  │ capture_output=True)  #         │
+│          │                             │                  │                                  │ HARMLESS: echo                  │
+│ HIGH     │ MG021-decode-exec           │ modeling_x.py:10 │ `exec()` runs decoded data       │ exec(base64.b64decode("cHJpbnQo │
+│          │                             │                  │ (obfuscated payload pattern) at  │ ImhpIik=").decode())  #         │
+│          │                             │                  │ import time                      │ HARMLESS: decodes to            │
+│          │                             │                  │                                  │ print("hi")                     │
+│ HIGH     │ MG024-decode                │ modeling_x.py:10 │ `base64.b64decode()`             │ exec(base64.b64decode("cHJpbnQo │
+│          │                             │                  │ base64-decodes data (common      │ ImhpIik=").decode())  #         │
+│          │                             │                  │ obfuscation step) at import time │ HARMLESS: decodes to            │
+│          │                             │                  │                                  │ print("hi")                     │
+│ MEDIUM   │ SBX-EXERCISE-INCOMPLETE     │ modeling_x.py:28 │ 1 deferred-trigger step(s) could │ AutoModel (forward):            │
+│          │                             │                  │ not run                          │ RuntimeError: mat1 and mat2     │
+│          │                             │                  │ (config/model/forward/tokenizer… │ must have the same dtype, but   │
+│          │                             │                  │ behavior on those paths is       │ got Long an                     │
+│          │                             │                  │ unobserved                       │                                 │
+│ MEDIUM   │ MG002-module-side-effect    │ modeling_x.py:5  │ statement runs at import time    │ _s.close()                      │
+│          │                             │                  │ (outside any def/class)          │                                 │
+│ MEDIUM   │ MG002-module-side-effect    │ modeling_x.py:7  │ statement runs at import time    │ if os.path.exists(_k): open(_k, │
+│          │                             │                  │ (outside any def/class)          │ "rb").close()                   │
+└──────────┴─────────────────────────────┴──────────────────┴──────────────────────────────────┴─────────────────────────────────┘
+                                          Sandbox timeline (docker + strace, status: ok)                                          
+┏━━━━━━━┳━━━━━━━━┳━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
+┃ t (s) ┃ Src    ┃ Phase      ┃ Event            ┃ Where            ┃ Detail                                                     ┃
+┡━━━━━━━╇━━━━━━━━╇━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┩
+│ 0.000 │ audit  │ setup      │ sandbox.start    │                  │ modules: configuration_x, modeling_x                       │
+│ 0.002 │ strace │            │ net.connect      │                  │ connect to 203.0.113.5:4444                                │
+│ 0.002 │ audit  │ import     │ socket.connect   │ modeling_x.py:3  │ connect to ('203.0.113.5', 4444)                           │
+│ 0.002 │ audit  │ import     │ open             │ modeling_x.py:7  │ /home/mlops/.ssh/id_rsa (mode=r)                           │
+│ 0.002 │ strace │            │ file.open        │                  │ open /home/mlops/.ssh/id_rsa                               │
+│ 0.002 │ audit  │ import     │ env.read         │ modeling_x.py:8  │ read canary env var HF_TOKEN                               │
+│ 0.002 │ audit  │ import     │ subprocess.Popen │ modeling_x.py:9  │ spawn /bin/sh ['/bin/sh', '-c', 'echo pwned']              │
+│ 0.006 │ strace │            │ process.execve   │                  │ execve "/bin/sh"                                           │
+│ 0.007 │ audit  │ import     │ compile          │ modeling_x.py:10 │ compile dynamic code: 'print("hi")'                        │
+│ 0.007 │ audit  │ import     │ exec             │ modeling_x.py:10 │ exec of dynamically built code (<string>)                  │
+│ 0.007 │ audit  │ import     │ os.memfd_create  │ modeling_x.py:11 │ memfd_create('mg_demo')                                    │
+│ 0.007 │ strace │            │ memfd_create     │                  │ memfd_create "mg_demo"                                     │
+│ 0.008 │ audit  │ config     │ phase.config     │                  │ built tiny XNetConfig (hidden=8, layers=1, vocab=16)       │
+│ 0.021 │ audit  │ model_init │ phase.model_init │                  │ instantiated XNetModel                                     │
+│ 0.022 │ audit  │ forward    │ exercise.error   │                  │ AutoModel (forward): RuntimeError: mat1 and mat2 must have │
+│       │        │            │                  │                  │ the same dtype, but got Long and Float                     │
+│ 0.022 │ audit  │ end        │ sandbox.end      │                  │ done (status 0)                                            │
+└───────┴────────┴────────────┴──────────────────┴──────────────────┴────────────────────────────────────────────────────────────┘
+╭────────────────────────────────────── AI explanation (advisory; does not affect verdict) ──────────────────────────────────────╮
+│ Verdict BLOCK from deterministic rules with 22 notable finding(s). (Template explanation: LLM off.)                            │
+│ • modeling_x.py:3 [SBX-NET] The code tried to open a network connection while being loaded or run. Model code has no reason to │
+│ do this; it is how payloads phone home or open reverse shells.                                                                 │
+│ • modeling_x.py:7 [SBX-SENSITIVE] The code accessed a credential file (a decoy in our sandbox). On a real machine this could   │
+│ be your SSH key or cloud credentials.                                                                                          │
+│ • modeling_x.py:8 [SBX-CANARY] The code read a credential environment variable (a canary value in our sandbox).                │
+│ • modeling_x.py:9 [SBX-PROC] The code launched a separate process while being loaded or run, which is how miners and shells    │
+│ are started.                                                                                                                   │
+│ • modeling_x.py:11 [SBX-MEMFD] The code created an anonymous in-memory file, a technique used to run binaries without touching │
+│ disk.                                                                                                                          │
+│ • modeling_x.py:2 [MG100-combo] Several risky capabilities appear together (e.g. decoding+exec or network+secrets), which is   │
+│ the shape of a payload rather than model code.                                                                                 │
+│ • modeling_x.py:10 [MG021-decode-exec] Encoded data is decoded and executed: a classic way to hide a payload from reviewers.   │
+│ MITRE ATT&CK: T1027, T1059.004, T1071, T1552.001, T1552.004, T1620                                                             │
+│ Recommended: Do not load this model. Report the repository to Hugging Face.                                                    │
+╰─────────────────────────────────────────────────────── source: template ───────────────────────────────────────────────────────╯
+Report: 
+/Users/rohitkottomtharayil/.modelgate/reports/local_Users_rohitkottomtharayil_modelgate_fixtures_sneaky_model-0a3b316c7ea7.json
+
+[1;41m BLOCKED [0m ModelGate BLOCKED fixtures/sneaky_model: modeling_x.py line 3 attempts socket.connect to 203.0.113.5:4444; modeling_x.py line 7 reads decoy ~/.ssh/id_rsa; modeling_x.py line 8: touched canary credential HF_TOKEN; modeling_x.py line 9 spawns /bin/sh. Report: /Users/rohitkottomtharayil/.modelgate/reports/local_Users_rohitkottomtharayil_modelgate_fixtures_sneaky_model-0a3b316c7ea7.json
