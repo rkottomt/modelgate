@@ -107,8 +107,8 @@ def validate(raw: dict, report: dict) -> dict:
 
 
 TEMPLATES = {
-    "SBX-NET": "The code tried to open a network connection while being imported. Legitimate model code has no reason to do this at load time; it is how payloads phone home or open reverse shells.",
-    "SBX-PROC": "The code launched a separate process during import, which is how miners and shells are started.",
+    "SBX-NET": "The code tried to open a network connection while being loaded or run. Model code has no reason to do this; it is how payloads phone home or open reverse shells.",
+    "SBX-PROC": "The code launched a separate process while being loaded or run, which is how miners and shells are started.",
     "SBX-SENSITIVE": "The code accessed a credential file (a decoy in our sandbox). On a real machine this could be your SSH key or cloud credentials.",
     "SBX-CANARY": "The code read a credential environment variable (a canary value in our sandbox).",
     "SBX-MEMFD": "The code created an anonymous in-memory file, a technique used to run binaries without touching disk.",

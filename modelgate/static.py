@@ -63,7 +63,15 @@ CALL_RULES: list[tuple[str, str, str, str]] = [
     ("os.posix_spawn", "MG012-process", "high", "spawns a process"),
     ("os.fork", "MG012-process", "high", "forks the process"),
     ("os.memfd_create", "MG013-memfd", "critical", "creates an anonymous in-memory file (fileless execution)"),
-    ("ctypes.", "MG014-native", "high", "loads native code via ctypes"),
+    ("ctypes.CDLL", "MG014-native", "high", "loads a native library via ctypes"),
+    ("ctypes.cdll.", "MG014-native", "high", "loads a native library via ctypes"),
+    ("ctypes.PyDLL", "MG014-native", "high", "loads a native library via ctypes"),
+    ("ctypes.pydll.", "MG014-native", "high", "loads a native library via ctypes"),
+    ("ctypes.WinDLL", "MG014-native", "high", "loads a native library via ctypes"),
+    ("ctypes.windll.", "MG014-native", "high", "loads a native library via ctypes"),
+    ("ctypes.CFUNCTYPE", "MG014-native", "high", "builds a native function pointer"),
+    ("ctypes.util.find_library", "MG014-native", "high", "locates a native library"),
+    ("cffi.", "MG014-native", "high", "loads native code via cffi"),
     ("torch.utils.cpp_extension.", "MG014-native", "high", "compiles/loads a native extension at runtime"),
     ("torch.ops.load_library", "MG014-native", "high", "loads a native shared library"),
     ("marshal.loads", "MG020-dynexec", "high", "deserializes code objects"),
@@ -74,7 +82,14 @@ CALL_RULES: list[tuple[str, str, str, str]] = [
     ("__import__", "MG022-dynimport", "high", "uses __import__"),
     ("codecs.decode", "MG024-decode", "high", "decodes data (common obfuscation step)"),
     ("bytes.fromhex", "MG024-decode", "high", "decodes hex data (common obfuscation step)"),
-    ("base64.", "MG024-decode", "high", "base64-decodes data (common obfuscation step)"),
+    ("base64.b64decode", "MG024-decode", "high", "base64-decodes data (common obfuscation step)"),
+    ("base64.urlsafe_b64decode", "MG024-decode", "high", "base64-decodes data (common obfuscation step)"),
+    ("base64.standard_b64decode", "MG024-decode", "high", "base64-decodes data (common obfuscation step)"),
+    ("base64.decodebytes", "MG024-decode", "high", "base64-decodes data (common obfuscation step)"),
+    ("base64.b32decode", "MG024-decode", "high", "decodes data (common obfuscation step)"),
+    ("base64.b85decode", "MG024-decode", "high", "decodes data (common obfuscation step)"),
+    ("base64.a85decode", "MG024-decode", "high", "decodes data (common obfuscation step)"),
+    ("base64.b16decode", "MG024-decode", "high", "decodes data (common obfuscation step)"),
     ("zlib.decompress", "MG024-decode", "high", "decompresses data (common obfuscation step)"),
     ("lzma.decompress", "MG024-decode", "high", "decompresses data (common obfuscation step)"),
     ("bz2.decompress", "MG024-decode", "high", "decompresses data (common obfuscation step)"),
@@ -121,6 +136,8 @@ SAFE_TOPLEVEL_CALLS = re.compile(
     r"get_torch_version|logging\.[a-z_]+|check_min_version|get_activation|finfo|iinfo|tensor|device|dtype|"
     r"pre_tokenizers\.[A-Za-z]+|normalizers\.[A-Za-z]+|bytes_to_unicode|_import_structure|set_verbosity\w*|"
     r"find_spec|cuda\.is_available|torch\.cuda\.is_available|get_device_capability|"
+    r"signature|hasattr|isinstance|issubclass|len|any|all|sorted|split|startswith|endswith|keys|"
+    r"is_bf16_supported|device_count|get_device_name|"
     r"ClassInstantier|ACT2CLS|ACT2FN|auto_docstring|deprecate_kwarg|can_return_tuple|use_kernel_forward_from_hub)$"
 )
 
@@ -391,7 +408,34 @@ def _comment_injections(src: str, rel: str, lines: list[str]) -> list[Finding]:
     return out
 
 
-def scan_file(path: Path, rel: str) -> list[Finding]:
+def reachable_modules(bundle: CodeBundle) -> set[str]:
+    """.py files transformers would actually import: auto_map modules + their transitive relative imports."""
+    todo = [e.module_file for e in bundle.auto_map if e.other_repo is None and e.module_file in bundle.files]
+    seen: set[str] = set()
+    while todo:
+        rel = todo.pop()
+        if rel in seen:
+            continue
+        seen.add(rel)
+        try:
+            tree = ast.parse((bundle.root / rel).read_text(encoding="utf-8", errors="replace"))
+        except (SyntaxError, ValueError, RecursionError, OSError):
+            continue
+        base = Path(rel).parent
+        for node in ast.walk(tree):
+            if isinstance(node, ast.ImportFrom) and node.level:
+                pkg = base
+                for _ in range(node.level - 1):
+                    pkg = pkg.parent
+                names = [node.module] if node.module else [a.name for a in node.names]
+                for n in names:
+                    cand = (pkg / (n.replace(".", "/") + ".py")).as_posix().lstrip("./") if str(pkg) != "." else n.replace(".", "/") + ".py"
+                    if cand in bundle.files:
+                        todo.append(cand)
+    return seen
+
+
+def scan_file(path: Path, rel: str, reachable: bool = True) -> list[Finding]:
     """Scan one file. Any parsing failure is a fail-closed CRITICAL finding."""
     try:
         if path.stat().st_size > MAX_FILE_BYTES:
@@ -402,7 +446,7 @@ def scan_file(path: Path, rel: str) -> list[Finding]:
         v = _Visitor(rel, lines)
         v.visit(tree)
         findings = v.findings + _comment_injections(src, rel, lines)
-        for stmt in tree.body:
+        for stmt in (tree.body if reachable else []):  # only files transformers actually imports run at load
             if not _is_safe_stmt(stmt):
                 findings.append(Finding("MG002-module-side-effect", "medium", rel, stmt.lineno, v.snippet(stmt.lineno),
                                         "statement runs at import time (outside any def/class)"))
@@ -461,8 +505,9 @@ def combos(findings: list[Finding]) -> list[Finding]:
 
 def scan(bundle: CodeBundle) -> list[Finding]:
     findings = scan_manifest(bundle)
+    reach = reachable_modules(bundle)
     for rel in bundle.py_files:
-        findings.extend(scan_file(bundle.root / rel, rel))
+        findings.extend(scan_file(bundle.root / rel, rel, reachable=rel in reach))
     findings.extend(combos(findings))
     seen, uniq = set(), []
     for f in findings:

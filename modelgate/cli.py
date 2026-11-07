@@ -24,17 +24,26 @@ def render(report: dict, con: Console | None = None) -> None:
     con = con or console
     v = report["verdict"]
     sb = report["sandbox"]
-    sub = f"{report['target']}  ·  rev {report.get('revision') or 'main'}  ·  code {report['code_hash'][:12]}  ·  {report['scan_seconds']}s"
+    pin = f"sha {report['sha'][:12]}" if report.get("sha") else "local dir"
+    sub = f"{report['target']}  ·  {pin}  ·  code {(report.get('code_hash') or '')[:12]}  ·  {report['scan_seconds']}s"
     con.print(Panel(Text(f"\n{v}\n", justify="center", style=COLORS[v]), subtitle=sub, style=COLORS[v].split(" on ")[-1], padding=(0, 2)))
 
     if report.get("allowlisted"):
-        con.print("[green]Allowlisted: repo + revision + code hash match an approved entry. Code unchanged since approval.[/]")
+        con.print("[green]Allowlisted: repo + pinned SHA + code hash match a signed (HMAC) entry. Code unchanged since approval.[/]")
         return
 
-    if sb["mode"] == "subprocess":
-        con.print(Panel("[bold]NOT ISOLATED[/]: Docker unavailable. Dynamic analysis ran in a plain subprocess with a temp HOME, "
-                        "scrubbed env and an audit hook that denies network/process calls. Malicious code can bypass audit hooks.",
-                        style="bold red"))
+    if sb["mode"] in ("subprocess", "none"):
+        con.print(Panel(f"[bold]NOT ISOLATED[/]: {sb.get('note', '')}", style="bold red"))
+
+    refs = report.get("references") or []
+    if refs:
+        t = Table(title="Referenced repos (scanned recursively, pinned)", expand=True)
+        for c in ("Repo", "SHA", "Verdict", "Why"):
+            t.add_column(c, overflow="fold")
+        for r in refs:
+            t.add_row(r["target"], (r.get("sha") or "-")[:12], Text(r["verdict"], style=COLORS[r["verdict"]]),
+                      "; ".join(r.get("reasons") or [])[:160])
+        con.print(t)
 
     findings = [f for f in report["findings"] if f["severity"] != "low"]
     if findings:
@@ -49,18 +58,20 @@ def render(report: dict, con: Console | None = None) -> None:
             t.add_row(Text(f["severity"].upper(), style=SEV[f["severity"]]), f["rule_id"], where, f["message"], f["snippet"][:90])
         con.print(t)
 
-    ev = [e for e in sb["events"] if e["event"] not in ("module.imported",)]
+    ev = [e for e in sb.get("events", []) if e["event"] not in ("module.imported",)]
     if ev:
         t = Table(title=f"Sandbox timeline ({sb['mode']}{' + strace' if sb.get('strace') else ''}, status: {sb['status']})", expand=True)
         t.add_column("t (s)", justify="right", no_wrap=True)
         t.add_column("Src", no_wrap=True)
+        t.add_column("Phase", no_wrap=True)
         t.add_column("Event", no_wrap=True)
         t.add_column("Where", no_wrap=True)
         t.add_column("Detail", overflow="fold")
         for e in ev[:40]:
             where = f"{e['file']}:{e['line']}" if e.get("file") else ""
             style = "red" if e["event"] in policy.NET_EVENTS | policy.PROC_EVENTS | {"env.read", "os.memfd_create", "memfd_create"} else ""
-            t.add_row(f"{e['t']:.3f}", e.get("source", "audit"), Text(e["event"], style=style), where, e["detail"][:120])
+            phase = e.get("phase") or ""
+            t.add_row(f"{e['t']:.3f}", e.get("source", "audit"), phase, Text(e["event"], style=style), where, e["detail"][:120])
         con.print(t)
     elif sb["status"] == "skipped":
         con.print(f"[dim]Sandbox skipped: {sb.get('note')}[/]")
@@ -105,8 +116,8 @@ def allow(target: str = typer.Argument(..., help="HF repo id or local directory"
         render(report)
         console.print("[bold red]Refusing to allowlist a BLOCK verdict. Use --force if you are sure.[/]")
         raise typer.Exit(2)
-    policy.add_to_allowlist(repo_key(target), revision, report["code_hash"], report["verdict"])
-    console.print(f"[green]Allowlisted {target} @ {revision or 'main'} (code hash {report['code_hash'][:12]}, "
+    policy.add_to_allowlist(repo_key(target), report.get("sha"), report["code_hash"], report["verdict"])
+    console.print(f"[green]Allowlisted {target} @ {(report.get('sha') or 'local')[:12]} (code hash {report['code_hash'][:12]}, "
                   f"verdict was {report['verdict']}).[/] Stored in {policy.allowlist_path()}")
 
 

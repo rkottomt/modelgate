@@ -19,5 +19,5 @@ build-backend = "setuptools.build_meta"
 packages = ["modelgate", "modelgate.web"]
 
 [tool.setuptools.package-data]
-"modelgate.web" = ["*.html"]
+"modelgate.web" = ["*.html", "*.js", "*.css"]
 "modelgate" = ["sandbox_runner.py"]

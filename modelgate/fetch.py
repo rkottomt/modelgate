@@ -95,6 +95,12 @@ class CodeBundle:
         return d
 
 
+def _is_code_or_loader_config(rel: str) -> bool:
+    """Files whose content steers code execution; too big to analyze => fail closed."""
+    name = rel.rsplit("/", 1)[-1]
+    return rel.endswith(".py") or name in AUTO_MAP_FILES or name == "generation_config.json"
+
+
 def _sha256(path: Path) -> str:
     h = hashlib.sha256()
     with open(path, "rb") as f:
@@ -219,7 +225,7 @@ def fetch(target: str, revision: str | None = None, cache_dir: str | None = None
             if p.endswith(NATIVE_SUFFIXES):
                 issues.append(FileIssue("native", p, "compiled/native code in repo"))
             if not p.endswith(WEIGHT_SUFFIXES) and f["size"] > MAX_FILE_BYTES:
-                if p.endswith((".py", ".json")) and not p.endswith("tokenizer.json"):
+                if _is_code_or_loader_config(p):
                     issues.append(FileIssue("oversized", p, f"{f['size']} bytes > {MAX_FILE_BYTES} cap"))
                 skipped.append(p)
                 ignore.append(p)  # never download large non-code blobs (e.g. tokenizer.json, onnx)
@@ -236,7 +242,7 @@ def fetch(target: str, revision: str | None = None, cache_dir: str | None = None
             continue
         size = p.stat().st_size
         if size > MAX_FILE_BYTES:
-            if rel.endswith((".py", ".json")) and not rel.endswith("tokenizer.json"):
+            if _is_code_or_loader_config(rel):
                 if not any(i.path == rel for i in issues):
                     issues.append(FileIssue("oversized", rel, f"{size} bytes > {MAX_FILE_BYTES} cap"))
             skipped.append(rel)

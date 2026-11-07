@@ -1,0 +1,307 @@
+[
+  {
+    "repo": "fixtures/clean_model",
+    "sha": "",
+    "verdict": "ALLOW",
+    "expected": "ALLOW",
+    "critical": 0,
+    "high": 0,
+    "medium": 0,
+    "rules": [],
+    "sandbox": "docker/ok",
+    "refs": [],
+    "seconds": 2.95,
+    "top_reasons": [
+      "no high, medium, or critical findings"
+    ],
+    "kind": "fixture"
+  },
+  {
+    "repo": "fixtures/warn_model",
+    "sha": "",
+    "verdict": "WARN",
+    "expected": "WARN",
+    "critical": 0,
+    "high": 2,
+    "medium": 0,
+    "rules": [
+      "MG010-net-import",
+      "MG011-network"
+    ],
+    "sandbox": "docker/ok",
+    "refs": [],
+    "seconds": 2.96,
+    "top_reasons": [
+      "MG010-net-import modeling_vocab.py:10 imports network library `requests` in model code",
+      "MG011-network modeling_vocab.py:11 `requests.get()` makes an HTTP request"
+    ],
+    "kind": "fixture"
+  },
+  {
+    "repo": "fixtures/sneaky_model",
+    "sha": "",
+    "verdict": "BLOCK",
+    "expected": "BLOCK",
+    "critical": 10,
+    "high": 9,
+    "medium": 3,
+    "rules": [
+      "MG002-module-side-effect",
+      "MG010-net-import",
+      "MG010-proc-import",
+      "MG011-network",
+      "MG012-process",
+      "MG013-memfd",
+      "MG021-decode-exec",
+      "MG024-decode",
+      "MG040-sensitive-path",
+      "MG041-secret-env",
+      "MG100-combo-decode+exec",
+      "MG100-combo-network+process",
+      "MG100-combo-network+secret",
+      "SBX-CANARY",
+      "SBX-DYNEXEC",
+      "SBX-EXERCISE-INCOMPLETE",
+      "SBX-MEMFD",
+      "SBX-NET",
+      "SBX-PROC",
+      "SBX-SENSITIVE"
+    ],
+    "sandbox": "docker/ok",
+    "refs": [],
+    "seconds": 2.88,
+    "top_reasons": [
+      "SBX-NET modeling_x.py:3 attempted outbound network: connect to 203.0.113.5:4444",
+      "SBX-SENSITIVE modeling_x.py:7 accessed sensitive path (decoy) /home/mlops/.ssh/id_rsa",
+      "SBX-CANARY modeling_x.py:8 touched canary credential HF_TOKEN"
+    ],
+    "kind": "fixture"
+  },
+  {
+    "repo": "fixtures/injection_model",
+    "sha": "",
+    "verdict": "BLOCK",
+    "expected": "BLOCK",
+    "critical": 10,
+    "high": 9,
+    "medium": 7,
+    "rules": [
+      "MG002-module-side-effect",
+      "MG010-net-import",
+      "MG010-proc-import",
+      "MG011-network",
+      "MG012-process",
+      "MG013-memfd",
+      "MG021-decode-exec",
+      "MG024-decode",
+      "MG040-sensitive-path",
+      "MG041-secret-env",
+      "MG070-prompt-injection",
+      "MG100-combo-decode+exec",
+      "MG100-combo-network+process",
+      "MG100-combo-network+secret",
+      "SBX-CANARY",
+      "SBX-DYNEXEC",
+      "SBX-EXERCISE-INCOMPLETE",
+      "SBX-MEMFD",
+      "SBX-NET",
+      "SBX-PROC",
+      "SBX-SENSITIVE"
+    ],
+    "sandbox": "docker/ok",
+    "refs": [],
+    "seconds": 2.91,
+    "top_reasons": [
+      "SBX-NET modeling_x.py:3 attempted outbound network: connect to 203.0.113.5:4444",
+      "SBX-SENSITIVE modeling_x.py:7 accessed sensitive path (decoy) /home/mlops/.ssh/id_rsa",
+      "SBX-CANARY modeling_x.py:8 touched canary credential HF_TOKEN"
+    ],
+    "kind": "fixture"
+  },
+  {
+    "repo": "fixtures/deferred_model",
+    "sha": "",
+    "verdict": "BLOCK",
+    "expected": "BLOCK",
+    "critical": 3,
+    "high": 5,
+    "medium": 0,
+    "rules": [
+      "MG010-net-import",
+      "MG010-proc-import",
+      "MG011-network",
+      "MG012-process",
+      "MG100-combo-network+process",
+      "SBX-NET",
+      "SBX-PROC"
+    ],
+    "sandbox": "docker/ok",
+    "refs": [],
+    "seconds": 2.95,
+    "top_reasons": [
+      "SBX-NET modeling_lazy.py:19 attempted outbound network: connect to 203.0.113.5:3333 [deferred trigger: fired during forward]",
+      "SBX-PROC modeling_lazy.py:24 spawned a process: execve \"/bin/sh\" [deferred trigger: fired during forward]",
+      "MG100-combo-network+process modeling_lazy.py:16 network + process spawning (reverse shell / dropper pattern) [modeling_lazy.py:16, modeling_lazy.py:24]"
+    ],
+    "kind": "fixture"
+  },
+  {
+    "repo": "fixtures/cross_repo_model",
+    "sha": "",
+    "verdict": "BLOCK",
+    "expected": "BLOCK",
+    "critical": 1,
+    "high": 1,
+    "medium": 0,
+    "rules": [
+      "MG060-cross-repo",
+      "MG062-ref-blocked"
+    ],
+    "sandbox": "docker/ok",
+    "refs": [
+      "some-other-org/totally-legit-kernels=BLOCK"
+    ],
+    "seconds": 3.09,
+    "top_reasons": [
+      "MG062-ref-blocked config.json:0 referenced repo `some-other-org/totally-legit-kernels` is BLOCKED: MG004-fetch-failed could not fetch some-other-org/totally-legit-kernels@main: RepositoryNotFoundError"
+    ],
+    "kind": "fixture"
+  },
+  {
+    "repo": "microsoft/Phi-3-mini-4k-instruct",
+    "sha": "f39ac1d28e92",
+    "verdict": "WARN",
+    "expected": null,
+    "critical": 0,
+    "high": 0,
+    "medium": 2,
+    "rules": [
+      "MG002-module-side-effect",
+      "SBX-EXERCISE-INCOMPLETE"
+    ],
+    "sandbox": "docker/ok",
+    "refs": [],
+    "seconds": 3.52,
+    "top_reasons": [
+      "SBX-EXERCISE-INCOMPLETE modeling_phi3.py:1001 1 deferred-trigger step(s) could not run (config/model/forward/tokenizer); behavior on those paths is unobserved",
+      "MG002-module-side-effect modeling_phi3.py:56 statement runs at import time (outside any def/class)"
+    ],
+    "kind": "real"
+  },
+  {
+    "repo": "THUDM/chatglm3-6b",
+    "sha": "e9e0406d062c",
+    "verdict": "BLOCK",
+    "expected": null,
+    "critical": 1,
+    "high": 5,
+    "medium": 3,
+    "rules": [
+      "MG002-module-side-effect",
+      "MG014-native",
+      "MG020-dynexec",
+      "MG024-decode",
+      "MG030-entropy",
+      "MG100-combo-decode+dynexec",
+      "SBX-EXERCISE-INCOMPLETE"
+    ],
+    "sandbox": "docker/ok",
+    "refs": [],
+    "seconds": 3.77,
+    "top_reasons": [
+      "MG100-combo-decode+dynexec quantization.py:28 decoding combined with dynamic execution [quantization.py:28, modeling_chatglm.py:1035]"
+    ],
+    "kind": "real"
+  },
+  {
+    "repo": "nomic-ai/nomic-embed-text-v1.5",
+    "sha": "e9b6763023c6",
+    "verdict": "WARN",
+    "expected": null,
+    "critical": 0,
+    "high": 2,
+    "medium": 0,
+    "rules": [
+      "MG060-cross-repo",
+      "MG062-ref-warn"
+    ],
+    "sandbox": "skipped/skipped",
+    "refs": [
+      "nomic-ai/nomic-bert-2048=WARN"
+    ],
+    "seconds": 3.58,
+    "top_reasons": [
+      "MG060-cross-repo config.json:0 auto_map pulls code from ANOTHER repo `nomic-ai/nomic-bert-2048` (supply-chain hop; scanned recursively)",
+      "MG062-ref-warn config.json:0 referenced repo `nomic-ai/nomic-bert-2048` has warnings (6 findings)"
+    ],
+    "kind": "real"
+  },
+  {
+    "repo": "deepseek-ai/DeepSeek-V3",
+    "sha": "e815299b0bcb",
+    "verdict": "BLOCK",
+    "expected": null,
+    "critical": 1,
+    "high": 0,
+    "medium": 3,
+    "rules": [
+      "MG002-module-side-effect",
+      "MG050-write-outside",
+      "SBX-CRASH"
+    ],
+    "sandbox": "docker/crash",
+    "refs": [],
+    "seconds": 3.19,
+    "top_reasons": [
+      "SBX-CRASH modeling_deepseek.py:56 importing the remote code crashed (fail closed)"
+    ],
+    "kind": "real"
+  },
+  {
+    "repo": "Qwen/Qwen-7B-Chat",
+    "sha": "93a65d34827a",
+    "verdict": "WARN",
+    "expected": null,
+    "critical": 0,
+    "high": 5,
+    "medium": 7,
+    "rules": [
+      "MG002-module-side-effect",
+      "MG010-proc-import",
+      "MG012-process",
+      "MG014-native",
+      "MG024-decode",
+      "SBX-EXERCISE-INCOMPLETE"
+    ],
+    "sandbox": "docker/ok",
+    "refs": [],
+    "seconds": 3.27,
+    "top_reasons": [
+      "MG014-native cpp_kernels.py:1 imports native-code loader `torch.utils`",
+      "MG010-proc-import cpp_kernels.py:4 imports process library `subprocess`",
+      "MG012-process cpp_kernels.py:7 `subprocess.check_output()` spawns a process"
+    ],
+    "kind": "real"
+  },
+  {
+    "repo": "jinaai/jina-embeddings-v3",
+    "sha": "ab036b023d30",
+    "verdict": "WARN",
+    "expected": null,
+    "critical": 0,
+    "high": 1,
+    "medium": 0,
+    "rules": [
+      "MG060-cross-repo"
+    ],
+    "sandbox": "skipped/skipped",
+    "refs": [
+      "jinaai/xlm-roberta-flash-implementation=ALLOW"
+    ],
+    "seconds": 1.08,
+    "top_reasons": [
+      "MG060-cross-repo config.json:0 auto_map pulls code from ANOTHER repo `jinaai/xlm-roberta-flash-implementation` (supply-chain hop; scanned recursively)"
+    ],
+    "kind": "real"
+  }
+]

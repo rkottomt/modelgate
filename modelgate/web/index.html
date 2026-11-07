@@ -1,0 +1,55 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>ModelGate</title>
+  <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+  <header class="top">
+    <div class="brand"><span class="logo">◆</span> ModelGate <span class="tag">trust_remote_code safety gate</span></div>
+    <form id="scan-form" class="scan">
+      <input id="repo" name="repo" placeholder="org/model or fixtures/sneaky_model" autocomplete="off" spellcheck="false" required>
+      <input id="revision" name="revision" placeholder="revision (optional)" autocomplete="off" spellcheck="false">
+      <button type="submit" id="go">Scan</button>
+    </form>
+    <div id="fixtures" class="chips"></div>
+  </header>
+
+  <main>
+    <section id="status" class="status hidden"></section>
+
+    <section id="result" class="hidden">
+      <div id="banner" class="banner">
+        <div id="verdict" class="verdict"></div>
+        <div id="meta" class="meta"></div>
+      </div>
+
+      <div id="isolation" class="alert hidden"></div>
+
+      <div class="grid">
+        <div class="col">
+          <h2>Findings <span id="findings-count" class="count"></span></h2>
+          <p class="hint">Deterministic rules. These alone decide the verdict.</p>
+          <div id="findings"></div>
+
+          <div id="refs-wrap" class="hidden">
+            <h2>Referenced repos</h2>
+            <div id="refs"></div>
+          </div>
+        </div>
+
+        <div class="col">
+          <h2>Sandbox timeline <span id="sandbox-mode" class="count"></span></h2>
+          <ol id="timeline" class="timeline"></ol>
+
+          <h2>AI explanation <span class="advisory">advisory; does not affect verdict</span></h2>
+          <div id="explanation" class="explanation"></div>
+        </div>
+      </div>
+    </section>
+  </main>
+  <script src="/static/app.js"></script>
+</body>
+</html>
